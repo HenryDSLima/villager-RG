@@ -1,5 +1,7 @@
 package br.unicap.modvillagers.entidades;
 
+import br.unicap.modvillagers.util.ValidacaoUtil;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -28,10 +30,7 @@ public class Player extends LivingEntity {
     }
 
     public void setNomeJogador(String nomeJogador) {
-        if (nomeJogador == null || nomeJogador.isBlank()) {
-            throw new IllegalArgumentException("Nome do jogador não pode ser nulo ou vazio.");
-        }
-        this.nomeJogador = nomeJogador.trim();
+        this.nomeJogador = ValidacaoUtil.exigirTextoValido(nomeJogador, "Nome do jogador");
     }
 
     public List<String> getHistoricoChat() {

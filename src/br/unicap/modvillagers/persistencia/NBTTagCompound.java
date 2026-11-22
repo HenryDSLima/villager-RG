@@ -1,5 +1,7 @@
 package br.unicap.modvillagers.persistencia;
 
+import br.unicap.modvillagers.util.ValidacaoUtil;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -24,29 +26,25 @@ public class NBTTagCompound {
     }
 
     public void setString(String chave, String valor) {
-        validarChave(chave);
-        if (valor == null) {
-            throw new IllegalArgumentException("Valor associado à chave '" + chave + "' não pode ser nulo.");
-        }
-        this.stringTags.put(chave, valor);
+        String chaveValida = ValidacaoUtil.exigirTextoValido(chave, "Chave NBT");
+        ValidacaoUtil.exigirNaoNulo(valor, "Valor associado à chave '" + chaveValida + "'");
+        this.stringTags.put(chaveValida, valor);
     }
 
     public String getString(String chave) {
-        validarChave(chave);
-        return this.stringTags.getOrDefault(chave, "");
+        String chaveValida = ValidacaoUtil.exigirTextoValido(chave, "Chave NBT");
+        return this.stringTags.getOrDefault(chaveValida, "");
     }
 
     public void setStringList(String chave, List<String> valores) {
-        validarChave(chave);
-        if (valores == null) {
-            throw new IllegalArgumentException("Lista associada à chave '" + chave + "' não pode ser nula.");
-        }
-        this.listTags.put(chave, new ArrayList<>(valores));
+        String chaveValida = ValidacaoUtil.exigirTextoValido(chave, "Chave NBT");
+        ValidacaoUtil.exigirNaoNulo(valores, "Lista associada à chave '" + chaveValida + "'");
+        this.listTags.put(chaveValida, new ArrayList<>(valores));
     }
 
     public List<String> getStringList(String chave) {
-        validarChave(chave);
-        List<String> lista = this.listTags.get(chave);
+        String chaveValida = ValidacaoUtil.exigirTextoValido(chave, "Chave NBT");
+        List<String> lista = this.listTags.get(chaveValida);
         if (lista == null) {
             return Collections.emptyList();
         }
@@ -57,13 +55,15 @@ public class NBTTagCompound {
         if (chave == null || chave.isBlank()) {
             return false;
         }
-        return this.stringTags.containsKey(chave) || this.listTags.containsKey(chave);
+        String chaveValida = chave.trim();
+        return this.stringTags.containsKey(chaveValida) || this.listTags.containsKey(chaveValida);
     }
 
     public void remove(String chave) {
         if (chave != null) {
-            this.stringTags.remove(chave);
-            this.listTags.remove(chave);
+            String chaveValida = chave.trim();
+            this.stringTags.remove(chaveValida);
+            this.listTags.remove(chaveValida);
         }
     }
 
@@ -78,10 +78,16 @@ public class NBTTagCompound {
         return Collections.unmodifiableSet(chaves);
     }
 
-    private void validarChave(String chave) {
-        if (chave == null || chave.isBlank()) {
-            throw new IllegalArgumentException("Chave NBT não pode ser nula ou vazia.");
+    public Map<String, String> getStringTags() {
+        return Collections.unmodifiableMap(this.stringTags);
+    }
+
+    public Map<String, List<String>> getListTags() {
+        Map<String, List<String>> copia = new LinkedHashMap<>();
+        for (Map.Entry<String, List<String>> entrada : this.listTags.entrySet()) {
+            copia.put(entrada.getKey(), Collections.unmodifiableList(new ArrayList<>(entrada.getValue())));
         }
+        return Collections.unmodifiableMap(copia);
     }
 
     @Override

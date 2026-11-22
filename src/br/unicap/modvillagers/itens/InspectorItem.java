@@ -5,6 +5,7 @@ import br.unicap.modvillagers.entidades.Player;
 import br.unicap.modvillagers.entidades.Villager;
 import br.unicap.modvillagers.modelo.DocumentAttachment;
 import br.unicap.modvillagers.modelo.VillagerDocument;
+import br.unicap.modvillagers.util.ValidacaoUtil;
 
 /**
  * Item customizado ("Prancheta de Recenseamento") utilizado pelo jogador para
@@ -39,10 +40,7 @@ public class InspectorItem extends Item implements ItemRegistrable {
     }
 
     public void setRegistryId(String registryId) {
-        if (registryId == null || registryId.isBlank()) {
-            throw new IllegalArgumentException("Registry ID do item não pode ser nulo ou vazio.");
-        }
-        this.registryId = registryId.trim();
+        this.registryId = ValidacaoUtil.exigirTextoValido(registryId, "Registry ID do item");
     }
 
     @Override
@@ -60,14 +58,6 @@ public class InspectorItem extends Item implements ItemRegistrable {
         return registrado;
     }
 
-    /**
-     * Sobrescreve o comportamento padrão de {@link Item} para ler e exibir no chat
-     * do jogador os dados do documento civil quando o alvo for um {@link Villager}.
-     *
-     * @param jogador jogador que realiza a inspeção
-     * @param alvo    entidade viva inspecionada
-     * @return {@code true} se o alvo for um Villager com documento ativo; {@code false} caso contrário
-     */
     @Override
     public boolean interactLivingEntity(Player jogador, LivingEntity alvo) {
         if (jogador == null || alvo == null) {
@@ -91,9 +81,7 @@ public class InspectorItem extends Item implements ItemRegistrable {
         }
 
         VillagerDocument documento = attachment.getDocumento();
-        String mensagem = documento.formatarParaChat()
-                + "\n Profissão Atual: " + villager.getProfissaoAtual();
-        jogador.enviarMensagemChat(mensagem);
+        jogador.enviarMensagemChat(documento.formatarParaChat(villager.getProfissaoAtual()));
         return true;
     }
 

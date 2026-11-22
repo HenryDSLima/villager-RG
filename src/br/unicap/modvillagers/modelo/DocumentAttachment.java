@@ -1,5 +1,8 @@
 package br.unicap.modvillagers.modelo;
 
+import br.unicap.modvillagers.excecoes.DocumentoInvalidoException;
+import br.unicap.modvillagers.excecoes.PersistenciaNBTException;
+import br.unicap.modvillagers.excecoes.RegistroCivilException;
 import br.unicap.modvillagers.persistencia.NBTTagCompound;
 import br.unicap.modvillagers.servico.DocumentGenerator;
 
@@ -30,20 +33,10 @@ public class DocumentAttachment {
 
     private VillagerDocument documento;
 
-    /**
-     * Construtor padrão que emite automaticamente um documento civil utilizando
-     * {@link DocumentGenerator} por meio de dependência temporária.
-     */
     public DocumentAttachment() {
         this("Planície");
     }
 
-    /**
-     * Construtor que emite automaticamente um documento civil com nome adequado
-     * ao bioma de origem informado.
-     *
-     * @param biomaOrigem bioma de nascimento do Villager
-     */
     public DocumentAttachment(String biomaOrigem) {
         DocumentGenerator gerador = new DocumentGenerator();
         String nome = gerador.gerarNome(biomaOrigem);
@@ -52,14 +45,9 @@ public class DocumentAttachment {
         this.documento = new VillagerDocument(nome, cpf, rg, biomaOrigem, LocalDate.now());
     }
 
-    /**
-     * Construtor que inicializa o componente com um {@link VillagerDocument} já estruturado.
-     *
-     * @param documento documento civil a ser anexado
-     */
     public DocumentAttachment(VillagerDocument documento) {
         if (documento == null) {
-            throw new IllegalArgumentException("O documento anexado não pode ser nulo.");
+            throw new DocumentoInvalidoException("O documento anexado ao DocumentAttachment não pode ser nulo.");
         }
         this.documento = documento;
     }
@@ -79,7 +67,7 @@ public class DocumentAttachment {
      */
     public void registrarProfissao(String profissao) {
         if (documento == null) {
-            throw new IllegalStateException("Não há documento civil ativo neste componente.");
+            throw new DocumentoInvalidoException("Não há documento civil ativo neste componente para registrar profissão.");
         }
         documento.adicionarProfissao(profissao);
     }
@@ -88,13 +76,14 @@ public class DocumentAttachment {
      * Serializa os dados do {@link VillagerDocument} para uma estrutura {@link NBTTagCompound}.
      *
      * @param nbt composto NBT de destino
+     * @throws PersistenciaNBTException se o composto NBT for nulo ou não houver documento ativo
      */
-    public void writeToNBT(NBTTagCompound nbt) {
+    public void writeToNBT(NBTTagCompound nbt) throws PersistenciaNBTException {
         if (nbt == null) {
-            throw new IllegalArgumentException("NBTTagCompound não pode ser nulo.");
+            throw new PersistenciaNBTException("Não é possível serializar para um NBTTagCompound nulo.");
         }
         if (documento == null) {
-            throw new IllegalStateException("Não há documento civil para serializar em NBT.");
+            throw new PersistenciaNBTException("Não há documento civil ativo no componente para serialização em NBT.");
         }
 
         nbt.setString(TAG_NOME, documento.getNome());
@@ -109,13 +98,17 @@ public class DocumentAttachment {
      * Reconstrói o {@link VillagerDocument} a partir dos dados armazenados em um {@link NBTTagCompound}.
      *
      * @param nbt composto NBT de origem
+     * @throws PersistenciaNBTException se o composto NBT estiver incompleto, corrompido ou contiver dados inválidos
      */
-    public void readFromNBT(NBTTagCompound nbt) {
+    public void readFromNBT(NBTTagCompound nbt) throws PersistenciaNBTException {
         if (nbt == null) {
-            throw new IllegalArgumentException("NBTTagCompound não pode ser nulo.");
+            throw new PersistenciaNBTException("Não é possível ler dados de um NBTTagCompound nulo.");
         }
         if (!nbt.hasKey(TAG_NOME) || !nbt.hasKey(TAG_CPF) || !nbt.hasKey(TAG_RG)) {
-            throw new IllegalArgumentException("Dados NBT incompletos: nome, CPF e RG são obrigatórios.");
+            throw new PersistenciaNBTException(
+                "Dados NBT incompletos: as tags obrigatórias '" + TAG_NOME + "', '"
+                + TAG_CPF + "' e '" + TAG_RG + "' devem estar presentes."
+            );
         }
 
         String nome = nbt.getString(TAG_NOME);
@@ -128,17 +121,22 @@ public class DocumentAttachment {
             try {
                 dataGeracao = LocalDate.parse(nbt.getString(TAG_DATA_GERACAO));
             } catch (DateTimeParseException e) {
-                throw new IllegalArgumentException("Formato inválido para data de geração no NBT.", e);
+                throw new PersistenciaNBTException(
+                    "Formato inválido para a data de geração no NBT: '" + nbt.getString(TAG_DATA_GERACAO) + "'.", e
+                );
             }
         }
 
-        VillagerDocument restaurado = new VillagerDocument(nome, cpf, rg, bioma, dataGeracao);
-        List<String> profissoes = nbt.getStringList(TAG_HISTORICO_PROFISSOES);
-        for (String profissao : profissoes) {
-            restaurado.adicionarProfissao(profissao);
+        try {
+            VillagerDocument restaurado = new VillagerDocument(nome, cpf, rg, bioma, dataGeracao);
+            List<String> profissoes = nbt.getStringList(TAG_HISTORICO_PROFISSOES);
+            for (String profissao : profissoes) {
+                restaurado.adicionarProfissao(profissao);
+            }
+            this.documento = restaurado;
+        } catch (RegistroCivilException e) {
+            throw new PersistenciaNBTException("Falha ao reconstruir VillagerDocument a partir do NBT: " + e.getMessage(), e);
         }
-
-        this.documento = restaurado;
     }
 
     /**

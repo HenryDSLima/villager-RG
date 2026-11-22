@@ -1,16 +1,21 @@
 package br.unicap.modvillagers.servico;
 
+import br.unicap.modvillagers.util.ValidacaoUtil;
+
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Classe de serviço responsável por isolar a lógica matemática e aleatória
  * de geração de documentos civis para os Villagers (CPF válido, RG e nome por bioma).
  *
- * <p>Conforme a modelagem da Etapa 2, mantém alta coesão e baixo acoplamento,
- * sendo utilizada via relação de dependência por {@code DocumentAttachment}.</p>
+ * <p>Reutiliza {@link ValidacaoUtil} para evitar duplicação da lógica de cálculo
+ * de dígitos verificadores e normalização de biomas.</p>
  */
 public class DocumentGenerator {
+
+    private static final int MAX_TENTATIVAS_CPF_UNICO = 1000;
 
     private static final String[] NOMES_PLANICIE = {
         "Aldo", "Beatriz", "Carlos", "Davi", "Elena", "Fernando", "Helena", "Lucas", "Mariana", "Pedro"
@@ -73,29 +78,17 @@ public class DocumentGenerator {
 
     private final Random random;
 
-    /**
-     * Construtor padrão utilizando gerador pseudoaleatório do sistema.
-     */
     public DocumentGenerator() {
         this(new Random());
     }
 
-    /**
-     * Construtor sobrecarregado que aceita uma instância customizada de {@link Random}
-     * (útil para testes determinísticos).
-     *
-     * @param random gerador de números aleatórios
-     */
     public DocumentGenerator(Random random) {
-        if (random == null) {
-            throw new IllegalArgumentException("Gerador Random não pode ser nulo.");
-        }
-        this.random = random;
+        this.random = ValidacaoUtil.exigirNaoNulo(random, "Gerador Random");
     }
 
     /**
      * Gera um número de CPF brasileiro matematicamente válido segundo o algoritmo
-     * oficial do Módulo 11 (dois dígitos verificadores), formatado como {@code XXX.XXX.XXX-XX}.
+     * oficial do Módulo 11, formatado como {@code XXX.XXX.XXX-XX}.
      *
      * @return CPF válido e formatado
      */
@@ -106,10 +99,10 @@ public class DocumentGenerator {
             for (int i = 0; i < 9; i++) {
                 digitos[i] = random.nextInt(10);
             }
-        } while (todosDigitosIguais(digitos, 9));
+        } while (ValidacaoUtil.todosDigitosIguais(digitos, 9));
 
-        digitos[9] = calcularDigitoVerificadorCpf(digitos, 9, 10);
-        digitos[10] = calcularDigitoVerificadorCpf(digitos, 10, 11);
+        digitos[9] = ValidacaoUtil.calcularDigitoVerificadorCpf(digitos, 9, 10);
+        digitos[10] = ValidacaoUtil.calcularDigitoVerificadorCpf(digitos, 10, 11);
 
         return String.format(
             "%d%d%d.%d%d%d.%d%d%d-%d%d",
@@ -121,34 +114,31 @@ public class DocumentGenerator {
     }
 
     /**
-     * Valida matematicamente um número de CPF (com ou sem pontuação)
-     * conferindo seus dois dígitos verificadores pelo algoritmo do Módulo 11.
+     * Gera um CPF válido garantindo que ele não colida com nenhum CPF presente
+     * no conjunto ({@link Set}) de CPFs já emitidos.
+     *
+     * @param cpfsExistentes conjunto de CPFs já em uso
+     * @return CPF único e matematicamente válido
+     */
+    public String gerarCpfUnico(Set<String> cpfsExistentes) {
+        ValidacaoUtil.exigirNaoNulo(cpfsExistentes, "Conjunto de CPFs existentes");
+        for (int tentativa = 0; tentativa < MAX_TENTATIVAS_CPF_UNICO; tentativa++) {
+            String candidato = gerarCpfValido();
+            if (!cpfsExistentes.contains(candidato)) {
+                return candidato;
+            }
+        }
+        throw new IllegalStateException("Não foi possível gerar um CPF único após " + MAX_TENTATIVAS_CPF_UNICO + " tentativas.");
+    }
+
+    /**
+     * Valida matematicamente um número de CPF conferindo ambos os dígitos verificadores.
      *
      * @param cpf string contendo o CPF a ser validado
      * @return {@code true} se o CPF for válido; {@code false} caso contrário
      */
     public static boolean validarCpf(String cpf) {
-        if (cpf == null) {
-            return false;
-        }
-        String apenasDigitos = cpf.replaceAll("\\D", "");
-        if (apenasDigitos.length() != 11) {
-            return false;
-        }
-
-        int[] digitos = new int[11];
-        for (int i = 0; i < 11; i++) {
-            digitos[i] = apenasDigitos.charAt(i) - '0';
-        }
-
-        if (todosDigitosIguais(digitos, 11)) {
-            return false;
-        }
-
-        int dv1Esperado = calcularDigitoVerificadorCpf(digitos, 9, 10);
-        int dv2Esperado = calcularDigitoVerificadorCpf(digitos, 10, 11);
-
-        return digitos[9] == dv1Esperado && digitos[10] == dv2Esperado;
+        return ValidacaoUtil.validarCpf(cpf);
     }
 
     /**
@@ -169,12 +159,12 @@ public class DocumentGenerator {
         }
         int resto = soma % 11;
         String dv;
-        if (resto == 10) {
-            dv = "X";
-        } else if (resto == 0) {
+        if (resto == 0) {
             dv = "0";
+        } else if (resto == 1 || resto == 10) {
+            dv = "X";
         } else {
-            dv = String.valueOf(11 - resto == 10 ? "X" : 11 - resto);
+            dv = String.valueOf(11 - resto);
         }
 
         return String.format(
@@ -188,8 +178,6 @@ public class DocumentGenerator {
 
     /**
      * Gera um nome completo padrão para um Villager (bioma Planície).
-     *
-     * @return nome e sobrenome sorteados
      */
     public String gerarNome() {
         return gerarNome("Planície");
@@ -198,11 +186,11 @@ public class DocumentGenerator {
     /**
      * Gera um nome completo contextualizado ao bioma de origem do Villager.
      *
-     * @param bioma nome do bioma (ex.: Planície, Deserto, Taiga, Savana, Neve, Pântano, Selva)
-     * @return nome e sobrenome sorteados para o bioma informado
+     * @param bioma nome do bioma
+     * @return nome e sobrenome sorteados
      */
     public String gerarNome(String bioma) {
-        String chave = normalizarBioma(bioma);
+        String chave = ValidacaoUtil.normalizarChave(bioma);
         String[][] pool = POOL_POR_BIOMA.getOrDefault(
             chave,
             new String[][] { NOMES_PLANICIE, SOBRENOMES_PLANICIE }
@@ -213,38 +201,10 @@ public class DocumentGenerator {
         return primeiroNome + " " + sobrenome;
     }
 
-    private static int calcularDigitoVerificadorCpf(int[] digitos, int quantidade, int pesoInicial) {
-        int soma = 0;
-        for (int i = 0; i < quantidade; i++) {
-            soma += digitos[i] * (pesoInicial - i);
-        }
-        int resto = soma % 11;
-        return resto < 2 ? 0 : 11 - resto;
-    }
-
-    private static boolean todosDigitosIguais(int[] digitos, int limite) {
-        for (int i = 1; i < limite; i++) {
-            if (digitos[i] != digitos[0]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static String normalizarBioma(String bioma) {
-        if (bioma == null) {
-            return "planicie";
-        }
-        return bioma.trim()
-            .toLowerCase()
-            .replace("í", "i")
-            .replace("â", "a")
-            .replace("á", "a")
-            .replace("é", "e")
-            .replace("ó", "o")
-            .replace("ú", "u")
-            .replace("ã", "a")
-            .replace("õ", "o")
-            .replace("ç", "c");
+    /**
+     * Retorna o conjunto de biomas com listas de nomes dedicadas.
+     */
+    public static Set<String> getBiomasSuportados() {
+        return POOL_POR_BIOMA.keySet();
     }
 }

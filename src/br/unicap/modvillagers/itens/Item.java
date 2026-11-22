@@ -2,13 +2,10 @@ package br.unicap.modvillagers.itens;
 
 import br.unicap.modvillagers.entidades.LivingEntity;
 import br.unicap.modvillagers.entidades.Player;
+import br.unicap.modvillagers.util.ValidacaoUtil;
 
 /**
  * Classe base que representa um item nativo do Minecraft ({@code <<native>> Item}).
- *
- * <p>Fornece o comportamento padrão de interação com entidades vivas
- * ({@link #interactLivingEntity(Player, LivingEntity)}), que pode ser especializado
- * por subclasses por meio de herança e sobrescrita ({@code @Override}).</p>
  */
 public class Item {
 
@@ -31,10 +28,7 @@ public class Item {
     }
 
     public void setNomeItem(String nomeItem) {
-        if (nomeItem == null || nomeItem.isBlank()) {
-            throw new IllegalArgumentException("Nome do item não pode ser nulo ou vazio.");
-        }
-        this.nomeItem = nomeItem.trim();
+        this.nomeItem = ValidacaoUtil.exigirTextoValido(nomeItem, "Nome do item");
     }
 
     public String getDescricao() {
@@ -42,10 +36,7 @@ public class Item {
     }
 
     public void setDescricao(String descricao) {
-        if (descricao == null || descricao.isBlank()) {
-            throw new IllegalArgumentException("Descrição do item não pode ser nula ou vazia.");
-        }
-        this.descricao = descricao.trim();
+        this.descricao = ValidacaoUtil.exigirTextoValido(descricao, "Descrição do item");
     }
 
     public int getMaxStackSize() {
@@ -53,19 +44,9 @@ public class Item {
     }
 
     public void setMaxStackSize(int maxStackSize) {
-        if (maxStackSize < 1 || maxStackSize > 64) {
-            throw new IllegalArgumentException("Tamanho máximo da pilha deve estar entre 1 e 64.");
-        }
-        this.maxStackSize = maxStackSize;
+        this.maxStackSize = ValidacaoUtil.exigirIntervalo(maxStackSize, 1, 64, "Tamanho máximo da pilha");
     }
 
-    /**
-     * Comportamento padrão de interação de um item com uma entidade viva.
-     *
-     * @param jogador jogador que utilizou o item
-     * @param alvo    entidade viva alvo da interação
-     * @return {@code false} por padrão, indicando que o item não realiza ação especial
-     */
     public boolean interactLivingEntity(Player jogador, LivingEntity alvo) {
         return false;
     }

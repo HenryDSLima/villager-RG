@@ -1,5 +1,7 @@
 package br.unicap.modvillagers.entidades;
 
+import br.unicap.modvillagers.util.ValidacaoUtil;
+
 import java.util.UUID;
 
 /**
@@ -19,10 +21,7 @@ public class LivingEntity {
     }
 
     public LivingEntity(String id, String tipoEntidade, double vida, String biomaAtual) {
-        if (id == null || id.isBlank()) {
-            throw new IllegalArgumentException("ID da entidade não pode ser nulo ou vazio.");
-        }
-        this.id = id.trim();
+        this.id = ValidacaoUtil.exigirTextoValido(id, "ID da entidade");
         setTipoEntidade(tipoEntidade);
         setVida(vida);
         setBiomaAtual(biomaAtual);
@@ -38,10 +37,7 @@ public class LivingEntity {
     }
 
     public void setTipoEntidade(String tipoEntidade) {
-        if (tipoEntidade == null || tipoEntidade.isBlank()) {
-            throw new IllegalArgumentException("Tipo da entidade não pode ser nulo ou vazio.");
-        }
-        this.tipoEntidade = tipoEntidade.trim();
+        this.tipoEntidade = ValidacaoUtil.exigirTextoValido(tipoEntidade, "Tipo da entidade");
     }
 
     public double getVida() {
@@ -49,10 +45,7 @@ public class LivingEntity {
     }
 
     public void setVida(double vida) {
-        if (vida < 0) {
-            throw new IllegalArgumentException("Vida da entidade não pode ser negativa.");
-        }
-        this.vida = vida;
+        this.vida = ValidacaoUtil.exigirNaoNegativo(vida, "Vida da entidade");
     }
 
     public String getBiomaAtual() {
@@ -60,10 +53,7 @@ public class LivingEntity {
     }
 
     public void setBiomaAtual(String biomaAtual) {
-        if (biomaAtual == null || biomaAtual.isBlank()) {
-            throw new IllegalArgumentException("Bioma atual não pode ser nulo ou vazio.");
-        }
-        this.biomaAtual = biomaAtual.trim();
+        this.biomaAtual = ValidacaoUtil.exigirTextoValido(biomaAtual, "Bioma atual");
     }
 
     public boolean isAtiva() {
@@ -74,11 +64,6 @@ public class LivingEntity {
         this.ativa = ativa;
     }
 
-    /**
-     * Retorna uma descrição textual da entidade (sobrescrita pelas subclasses).
-     *
-     * @return descrição da entidade
-     */
     public String getDescricaoEntidade() {
         return tipoEntidade + " [ID=" + id + ", Bioma=" + biomaAtual + ", Vida=" + vida + "]";
     }
