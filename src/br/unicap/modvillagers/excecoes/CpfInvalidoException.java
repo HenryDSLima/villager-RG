@@ -1,0 +1,12 @@
+package br.unicap.modvillagers.excecoes;
+
+/**
+ * Exceção lançada quando um número de CPF não atende ao formato esperado
+ * ou falha na validação matemática dos dígitos verificadores (Módulo 11).
+ */
+public class CpfInvalidoException extends RegistroCivilException {
+
+    public CpfInvalidoException(String cpf) {
+        super("CPF inválido: '" + cpf + "'. Informe um CPF com 11 dígitos e dígitos verificadores válidos.");
+    }
+}
