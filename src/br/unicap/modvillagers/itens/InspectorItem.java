@@ -1,14 +1,108 @@
 package br.unicap.modvillagers.itens;
 
-public class InspectorItem extends Item {
-    
+import br.unicap.modvillagers.entidades.LivingEntity;
+import br.unicap.modvillagers.entidades.Player;
+import br.unicap.modvillagers.entidades.Villager;
+import br.unicap.modvillagers.modelo.DocumentAttachment;
+import br.unicap.modvillagers.modelo.VillagerDocument;
+
+/**
+ * Item customizado ("Prancheta de Recenseamento") utilizado pelo jogador para
+ * inspecionar o Registro Civil de Villagers.
+ *
+ * <p>Aplica herança ao estender {@link Item}, polimorfismo ao sobrescrever
+ * {@link #interactLivingEntity(Player, LivingEntity)} e implementação de interface
+ * ao cumprir o contrato de {@link ItemRegistrable}.</p>
+ */
+public class InspectorItem extends Item implements ItemRegistrable {
+
+    private String registryId;
+    private boolean registrado;
+
     public InspectorItem() {
-        super(); 
+        this(
+            "villagerrg:prancheta_recenseamento",
+            "Prancheta de Recenseamento",
+            "Permite inspecionar os documentos civis (Nome, CPF, RG e Histórico) de Villagers."
+        );
+    }
+
+    public InspectorItem(String registryId, String nomeItem, String descricao) {
+        super(nomeItem, descricao, 1);
+        setRegistryId(registryId);
+        this.registrado = false;
     }
 
     @Override
-    public boolean interactLivingEntity(String jogador, String alvo) {
-        System.out.println("O jogador " + jogador + " está inspecionando o " + alvo);
+    public String getRegistryId() {
+        return registryId;
+    }
+
+    public void setRegistryId(String registryId) {
+        if (registryId == null || registryId.isBlank()) {
+            throw new IllegalArgumentException("Registry ID do item não pode ser nulo ou vazio.");
+        }
+        this.registryId = registryId.trim();
+    }
+
+    @Override
+    public String getNomeExibicao() {
+        return getNomeItem();
+    }
+
+    @Override
+    public void registrar() {
+        this.registrado = true;
+    }
+
+    @Override
+    public boolean isRegistrado() {
+        return registrado;
+    }
+
+    /**
+     * Sobrescreve o comportamento padrão de {@link Item} para ler e exibir no chat
+     * do jogador os dados do documento civil quando o alvo for um {@link Villager}.
+     *
+     * @param jogador jogador que realiza a inspeção
+     * @param alvo    entidade viva inspecionada
+     * @return {@code true} se o alvo for um Villager com documento ativo; {@code false} caso contrário
+     */
+    @Override
+    public boolean interactLivingEntity(Player jogador, LivingEntity alvo) {
+        if (jogador == null || alvo == null) {
+            return false;
+        }
+
+        if (!(alvo instanceof Villager villager)) {
+            jogador.enviarMensagemChat(
+                "[" + getNomeItem() + "] A entidade '" + alvo.getTipoEntidade()
+                + "' não possui Registro Civil."
+            );
+            return false;
+        }
+
+        DocumentAttachment attachment = villager.getDocumentAttachment();
+        if (!villager.isAtiva() || attachment == null || !attachment.hasDocumento()) {
+            jogador.enviarMensagemChat(
+                "[" + getNomeItem() + "] Este Villager não possui um documento civil ativo."
+            );
+            return false;
+        }
+
+        VillagerDocument documento = attachment.getDocumento();
+        String mensagem = documento.formatarParaChat()
+                + "\n Profissão Atual: " + villager.getProfissaoAtual();
+        jogador.enviarMensagemChat(mensagem);
         return true;
+    }
+
+    @Override
+    public String toString() {
+        return "InspectorItem{"
+                + "registryId='" + registryId + '\''
+                + ", nome='" + getNomeItem() + '\''
+                + ", registrado=" + registrado
+                + '}';
     }
 }
