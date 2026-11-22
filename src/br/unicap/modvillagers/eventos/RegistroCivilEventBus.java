@@ -6,61 +6,73 @@ import br.unicap.modvillagers.entidades.Villager;
 import br.unicap.modvillagers.itens.Item;
 import br.unicap.modvillagers.itens.ItemRegistrable;
 import br.unicap.modvillagers.modelo.VillagerDocument;
+import br.unicap.modvillagers.servico.CartorioRegistroCivil;
+import br.unicap.modvillagers.util.ValidacaoUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Simula o barramento de eventos ({@code Event Bus}) do Mod Loader Fabric,
- * conectando os casos de uso definidos na Etapa 1:
- * registro polimórfico de itens ({@link ItemRegistrable}), emissão automática
- * de documentos civis no surgimento de Villagers, atualização do histórico de
- * empregos e despacho de interações do jogador com entidades vivas.
+ * integrando o registro polimórfico de itens ({@link ItemRegistrable}) em um
+ * {@link Map} indexado por {@code registryId}, a emissão de documentos via
+ * {@link CartorioRegistroCivil}, a atualização de histórico de profissões e
+ * o despacho de interações do jogador com entidades vivas.
  */
 public class RegistroCivilEventBus {
 
-    private final List<ItemRegistrable> itensRegistrados;
-    private final List<Villager> villagersMonitorados;
+    private final Map<String, ItemRegistrable> itensPorRegistryId;
+    private final CartorioRegistroCivil cartorio;
 
     public RegistroCivilEventBus() {
-        this.itensRegistrados = new ArrayList<>();
-        this.villagersMonitorados = new ArrayList<>();
+        this(new CartorioRegistroCivil());
+    }
+
+    public RegistroCivilEventBus(CartorioRegistroCivil cartorio) {
+        this.itensPorRegistryId = new LinkedHashMap<>();
+        this.cartorio = ValidacaoUtil.exigirNaoNulo(cartorio, "CartorioRegistroCivil");
     }
 
     /**
-     * Registra qualquer item que implemente o contrato {@link ItemRegistrable},
-     * demonstrando o uso polimórfico de interfaces no sistema de eventos.
+     * Registra qualquer item que implemente {@link ItemRegistrable}, indexando-o
+     * pelo seu {@code registryId} em um {@link Map} para evitar registros duplicados.
      *
      * @param item item registrável a ser adicionado
      */
     public void registrarItem(ItemRegistrable item) {
-        if (item == null) {
-            throw new IllegalArgumentException("Item registrável não pode ser nulo.");
-        }
+        ValidacaoUtil.exigirNaoNulo(item, "Item registrável");
         item.registrar();
-        if (!this.itensRegistrados.contains(item)) {
-            this.itensRegistrados.add(item);
-        }
+        this.itensPorRegistryId.put(item.getRegistryId(), item);
         System.out.println("[EventBus] Item registrado: " + item.getNomeExibicao()
                 + " (" + item.getRegistryId() + ")");
     }
 
+    public ItemRegistrable buscarItemRegistrado(String registryId) {
+        String idValido = ValidacaoUtil.exigirTextoValido(registryId, "Registry ID");
+        return this.itensPorRegistryId.get(idValido);
+    }
+
     public List<ItemRegistrable> getItensRegistrados() {
-        return Collections.unmodifiableList(itensRegistrados);
+        return Collections.unmodifiableList(new ArrayList<>(itensPorRegistryId.values()));
+    }
+
+    public Map<String, ItemRegistrable> getMapaItensRegistrados() {
+        return Collections.unmodifiableMap(itensPorRegistryId);
+    }
+
+    public CartorioRegistroCivil getCartorio() {
+        return cartorio;
     }
 
     /**
-     * Caso de uso: Emitir Documento de Identidade no surgimento (spawn) de um Villager.
-     *
-     * @param bioma            bioma onde o Villager nasceu
-     * @param profissaoInicial profissão inicial do Villager
-     * @return instância de {@link Villager} já registrada com seu documento civil
+     * Caso de uso: Emitir Documento de Identidade no surgimento (spawn) de um Villager,
+     * cadastrando-o automaticamente no {@link CartorioRegistroCivil}.
      */
     public Villager emitirDocumentoNoSpawn(String bioma, String profissaoInicial) {
-        Villager villager = new Villager(bioma, profissaoInicial);
-        this.villagersMonitorados.add(villager);
-
+        Villager villager = cartorio.emitirERegistrarVillager(bioma, profissaoInicial);
         VillagerDocument doc = villager.getDocumentAttachment().getDocumento();
         System.out.println("[EventBus] Documento civil emitido no spawn -> "
                 + doc.getNome() + " | CPF: " + doc.getCpf()
@@ -71,14 +83,9 @@ public class RegistroCivilEventBus {
 
     /**
      * Caso de uso: Atualizar Histórico de Emprego quando um Villager muda de profissão.
-     *
-     * @param villager      Villager que mudou de profissão
-     * @param novaProfissao nova profissão assumida
      */
     public void atualizarHistoricoEmprego(Villager villager, String novaProfissao) {
-        if (villager == null) {
-            throw new IllegalArgumentException("Villager não pode ser nulo.");
-        }
+        ValidacaoUtil.exigirNaoNulo(villager, "Villager");
         String profissaoAnterior = villager.getProfissaoAtual();
         villager.setProfissaoAtual(novaProfissao);
         System.out.println("[EventBus] Histórico de emprego atualizado para "
@@ -87,13 +94,7 @@ public class RegistroCivilEventBus {
     }
 
     /**
-     * Caso de uso: Inspecionar Cidadão / Visualizar Dados.
-     * Despacha a interação utilizando referência polimórfica do tipo base {@link Item}.
-     *
-     * @param jogador   jogador que inicia a interação
-     * @param itemNaMao item equipado pelo jogador
-     * @param alvo      entidade viva alvo
-     * @return resultado booleano retornado pela implementação do item
+     * Caso de uso: Inspecionar Cidadão / Visualizar Dados via referência polimórfica {@link Item}.
      */
     public boolean dispararInteracaoEntidade(Player jogador, Item itemNaMao, LivingEntity alvo) {
         if (jogador == null || itemNaMao == null || alvo == null) {
@@ -103,6 +104,6 @@ public class RegistroCivilEventBus {
     }
 
     public List<Villager> getVillagersMonitorados() {
-        return Collections.unmodifiableList(villagersMonitorados);
+        return cartorio.listarTodos();
     }
 }
