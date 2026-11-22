@@ -1,9 +1,13 @@
 # Compiled Java class files
 *.class
 bin/
+bin-test/
 out/
 build/
 target/
+
+# Generated runtime data files
+dados/
 
 # IDE metadata
 .idea/
