@@ -4,7 +4,7 @@ Projeto Integrador da disciplina de **Programação Orientada a Objetos (POO)** 
 
 - **Autor:** Henry de Souza Lima
 - **Orientadora:** Profa. Ivna Cristine Brasileiro Valença de Oliveira
-- **Etapa Atual:** Etapa 3 (Implementação das classes e integração dos componentes em Java)
+- **Etapa Atual:** Etapa 4 (Exceções específicas, Coleções `List`/`Map`/`Set`, Java I/O, Testes Unitários com JUnit 5 e Código Limpo)
 
 ---
 
@@ -13,89 +13,98 @@ Projeto Integrador da disciplina de **Programação Orientada a Objetos (POO)** 
 O **Villager-RG** implementa a arquitetura orientada a objetos de um **Sistema de Registro Civil para Villagers** (inspirado em uma modificação para *Minecraft Java Edition* utilizando a API Fabric). O sistema atribui uma identidade civil única, persistente e imutável a cada Villager gerado no mundo, composta por:
 
 - **Nome completo** sorteado de acordo com o bioma de origem;
-- **CPF matematicamente válido** (calculado e verificável pelo algoritmo oficial do Módulo 11);
+- **CPF matematicamente válido** (calculado e verificado pelo algoritmo oficial do Módulo 11);
 - **RG formatado** com dígito verificador;
 - **Bioma de origem** e **Data de emissão**;
-- **Histórico de profissões** exercidas ao longo do tempo.
+- **Histórico cronológico de profissões** (`List`) e **profissões distintas exercidas** (`Set`).
 
-Jogadores podem interagir com entidades vivas utilizando o item customizado **Prancheta de Recenseamento** (`InspectorItem`) para consultar e exibir os dados civis formatados no chat, enquanto o componente `DocumentAttachment` gerencia a persistência simulada em estrutura **NBT (*Named Binary Tag*)**.
+Além da inspeção de cidadãos pelo item **Prancheta de Recenseamento** (`InspectorItem`), o sistema conta com o **Cartório de Registro Civil** (`CartorioRegistroCivil`), persistência real em arquivos UTF-8 via **Java I/O** (`ArquivoNBTPersistencia`), hierarquia de **exceções específicas** e suíte de **testes unitários em JUnit 5**.
 
 ---
 
 ## Arquitetura e Organização de Pacotes
 
-A implementação segue fielmente o **Diagrama de Classes UML da Etapa 2** e o **Diagrama de Casos de Uso da Etapa 1**:
-
 ```text
-src/
-└── br/unicap/modvillagers/
-    ├── Main.java                                 # Demonstração completa da integração dos componentes
-    ├── entidades/
-    │   ├── LivingEntity.java                     # Classe base para entidades vivas do jogo
-    │   ├── Player.java                           # Subclasse de LivingEntity com histórico de chat
-    │   └── Villager.java                         # Subclasse de LivingEntity composta por DocumentAttachment
-    ├── eventos/
-    │   └── RegistroCivilEventBus.java            # Barramento de eventos (spawn, profissão, registro e interação)
-    ├── itens/
-    │   ├── ItemRegistrable.java                  # Interface de contrato para registro padronizado de itens
-    │   ├── Item.java                             # Classe base de itens nativos (interactLivingEntity)
-    │   └── InspectorItem.java                    # Prancheta de Recenseamento (herda Item, implementa ItemRegistrable)
-    ├── modelo/
-    │   ├── VillagerDocument.java                 # Modelo encapsulado e imutável do documento civil
-    │   └── DocumentAttachment.java               # Componente 1:1 com VillagerDocument e serialização NBT
-    ├── persistencia/
-    │   └── NBTTagCompound.java                   # Estrutura simulada de persistência NBT
+villager-RG/
+├── lib/
+│   └── junit-platform-console-standalone-1.10.2.jar   # Executor oficial JUnit 5
+├── src/br/unicap/modvillagers/
+│   ├── Main.java                                      # Demonstração integrada (Etapas 3 e 4)
+│   ├── entidades/
+│   │   ├── LivingEntity.java                          # Classe base de entidades vivas
+│   │   ├── Player.java                                # Subclasse de LivingEntity com chat
+│   │   └── Villager.java                              # Subclasse de LivingEntity com DocumentAttachment
+│   ├── eventos/
+│   │   └── RegistroCivilEventBus.java                 # Barramento de eventos integrado ao cartório e Map de itens
+│   ├── excecoes/
+│   │   ├── RegistroCivilException.java                # Exceção base de domínio
+│   │   ├── CpfInvalidoException.java                  # CPF fora do padrão ou com DV inválido
+│   │   ├── DocumentoInvalidoException.java            # Campos obrigatórios ausentes/inválidos
+│   │   ├── VillagerDuplicadoException.java            # Tentativa de duplicar CPF no cartório
+│   │   ├── VillagerNaoEncontradoException.java        # Busca por CPF não cadastrado
+│   │   └── PersistenciaNBTException.java              # Exceção checked para erros de NBT e I/O
+│   ├── itens/
+│   │   ├── ItemRegistrable.java                       # Interface de registro padronizado
+│   │   ├── Item.java                                  # Classe base nativa de itens
+│   │   └── InspectorItem.java                         # Prancheta de Recenseamento (herança + interface)
+│   ├── modelo/
+│   │   ├── VillagerDocument.java                      # Modelo imutável e encapsulado do documento civil
+│   │   └── DocumentAttachment.java                    # Composição 1:1 com VillagerDocument + NBT
+│   ├── persistencia/
+│   │   ├── NBTTagCompound.java                        # Estrutura simulada de Named Binary Tag
+│   │   └── ArquivoNBTPersistencia.java                # Leitura/escrita de arquivos NBT e relatório de censo (Java I/O)
+│   ├── servico/
+│   │   ├── DocumentGenerator.java                     # Geração de CPF único/válido, RG e nomes por bioma
+│   │   └── CartorioRegistroCivil.java                 # Gestão de cidadãos com List, Map e Set
+│   └── util/
+│       └── ValidacaoUtil.java                         # Validações centralizadas sem duplicação de código
+└── test/br/unicap/modvillagers/
+    ├── itens/InspectorItemTest.java                   # Testes de herança, interface e polimorfismo
+    ├── modelo/DocumentAttachmentTest.java             # Testes de composição e serialização NBT
+    ├── modelo/VillagerDocumentTest.java               # Testes de encapsulamento, exceções e profissões
+    ├── persistencia/ArquivoNBTPersistenciaTest.java   # Testes de leitura/escrita em arquivos com @TempDir
     └── servico/
-        └── DocumentGenerator.java                # Serviço de geração/validação de CPF, RG e nomes por bioma
+        ├── CartorioRegistroCivilTest.java             # Testes de List, Map, Set e exceções do cartório
+        └── DocumentGeneratorTest.java                 # Testes de validação matemática de CPF, RG e nomes
 ```
 
 ---
 
-## Conceitos de POO Aplicados
+## Recursos Implementados
 
-1. **Encapsulamento e Visibilidade:**
-   - Todos os atributos das classes são `private`, com acesso controlado por métodos getters e setters com validação de argumentos.
-   - Em `VillagerDocument`, dados de identidade (`nome`, `cpf`, `rg`, `biomaOrigem`, `dataGeracao`) são propositalmente imutáveis após a construção (sem setters), e `getHistoricoProfissoes()` retorna uma lista não modificável (`Collections.unmodifiableList`), permitindo alterações apenas via `adicionarProfissao(String)`.
-2. **Construtores e Sobrecarga:**
-   - Todas as classes possuem construtores paramétricos que garantem a inicialização dos objetos em estado válido (impedindo identidades nulas ou incompletas).
-   - Sobrecarga de construtores em `VillagerDocument`, `DocumentAttachment`, `DocumentGenerator`, `LivingEntity`, `Player`, `Villager`, `Item` e `InspectorItem`.
-3. **Herança:**
-   - `InspectorItem` estende `Item`.
-   - `Player` e `Villager` estendem `LivingEntity`.
-4. **Polimorfismo (Sobrescrita `@Override` e Despacho Dinâmico):**
-   - `InspectorItem` sobrescreve `interactLivingEntity(Player jogador, LivingEntity alvo)`, alterando o comportamento padrão de `Item` para inspecionar o registro civil de `Villager`s.
-   - `RegistroCivilEventBus.dispararInteracaoEntidade(Player, Item, LivingEntity)` aciona `interactLivingEntity` por meio de referência polimórfica do tipo base `Item`.
-   - `Player` e `Villager` sobrescrevem `getDescricaoEntidade()` de `LivingEntity`.
-5. **Interfaces:**
-   - `ItemRegistrable` define o contrato de registro de itens no sistema de eventos, implementado por `InspectorItem` e consumido polimorficamente por `RegistroCivilEventBus.registrarItem(ItemRegistrable)`.
-6. **Composição (1:1) e Dependência:**
-   - **Composição:** `DocumentAttachment` (todo) cria e controla o ciclo de vida de `VillagerDocument` (parte). Quando um `Villager` é removido do mundo (`removerDoMundo()`), o documento associado é liberado.
-   - **Dependência:** `DocumentAttachment` utiliza temporariamente `DocumentGenerator` na emissão do documento sem manter referência permanente de instância.
+### Fundamentos de POO (Etapa 3)
+- **Encapsulamento:** atributos `private`, dados civis imutáveis em `VillagerDocument` e coleções expostas como visualizações não modificáveis (`Collections.unmodifiableList/Set/Map`).
+- **Herança e Polimorfismo:** `InspectorItem extends Item` sobrescrevendo `interactLivingEntity(Player, LivingEntity)`; `Player` e `Villager` estendendo `LivingEntity`.
+- **Interface:** `ItemRegistrable` implementada por `InspectorItem` e consumida polimorficamente no `RegistroCivilEventBus`.
+- **Composição e Dependência:** composição 1:1 `DocumentAttachment -> VillagerDocument` (com ciclo de vida controlado via `destruir()`) e dependência temporária de `DocumentGenerator`.
+
+### Evolução da Aplicação (Etapa 4)
+- **Tratamento de Exceções Específicas:** hierarquia dedicada em `br.unicap.modvillagers.excecoes` com mensagens úteis e `PersistenciaNBTException` (checked) para falhas de I/O e formato NBT.
+- **Coleções (`List`, `Map` e `Set`):**
+  - `Map<String, Villager>` para consulta por CPF em $O(1)$, `Map<String, List<Villager>>` para agrupamento por bioma, `Map<String, Integer>` para censo por profissão e `Map<String, ItemRegistrable>` no `EventBus`.
+  - `Set<String>` para unicidade histórica de CPFs emitidos, biomas distintos registrados e profissões únicas em `VillagerDocument`.
+  - `List<String>` e `List<Villager>` para histórico cronológico de profissões, histórico de chat e listagem ordenada.
+- **Leitura e Escrita de Arquivos (Java I/O):** `ArquivoNBTPersistencia` utiliza `Files.newBufferedWriter`, `Files.newBufferedReader` (`UTF-8`) e `try-with-resources` para persistir e restaurar registros NBT em `dados/registro_civil_villagers.nbt` e exportar relatórios de censo em `dados/relatorio_censo.txt`.
+- **Código Limpo sem Duplicação:** validações de texto, intervalo, normalização de acentos e cálculo de Módulo 11 centralizados em `ValidacaoUtil`.
+- **Testes Unitários (JUnit 5):** 23 testes organizados em 6 classes sob `test/`, documentados com `@DisplayName` e Javadoc, cobrindo modelos, serviços, polimorfismo, exceções e I/O em disco (`@TempDir`).
 
 ---
 
 ## Pré-requisitos
 
-- **Java Development Kit (JDK) 17** ou superior instalado e configurado no `PATH`.
-
-Verifique sua versão com:
-
-```bash
-java -version
-javac -version
-```
+- **Java Development Kit (JDK) 17** ou superior configurado no `PATH`.
 
 ---
 
-## Como Compilar e Executar
+## Como Compilar e Executar a Aplicação
 
 A partir da raiz do repositório (`villager-RG`):
 
 ### Windows (PowerShell)
 
 ```powershell
-$arquivos = Get-ChildItem -Path "src" -Recurse -Filter "*.java" | ForEach-Object { $_.FullName }
-javac -encoding UTF-8 -d bin $arquivos
+$src = Get-ChildItem -Path "src" -Recurse -Filter "*.java" | ForEach-Object { $_.FullName }
+javac -encoding UTF-8 -d bin $src
 java "-Dfile.encoding=UTF-8" -cp bin br.unicap.modvillagers.Main
 ```
 
@@ -109,13 +118,22 @@ java -Dfile.encoding=UTF-8 -cp bin br.unicap.modvillagers.Main
 
 ---
 
-## Fluxo Demonstrado na Execução (`Main`)
+## Como Executar os Testes Unitários (JUnit 5)
 
-Ao executar a classe `br.unicap.modvillagers.Main`, o programa demonstra de forma integrada:
+Com a aplicação compilada em `bin/`, compile e execute a suíte JUnit 5:
 
-1. **Registro polimórfico de itens** no `RegistroCivilEventBus` por meio da interface `ItemRegistrable`;
-2. **Emissão automática de documentos civis no spawn** de Villagers de diferentes biomas (`Planície`, `Deserto` e `Taiga`), validando matematicamente cada CPF gerado pelo algoritmo do Módulo 11;
-3. **Atualização do histórico de empregos** e consulta completa dos getters de `VillagerDocument`, confirmando a proteção da lista imutável;
-4. **Interação polimórfica** entre jogador, itens (`Item` comum vs. `InspectorItem` referenciado como `Item`) e entidades (`Villager` vs. `LivingEntity` comum);
-5. **Serialização e desserialização em NBT** (`writeToNBT` e `readFromNBT`), validando a integridade completa dos dados restaurados;
-6. **Ciclo de vida da composição 1:1**, comprovando que a remoção do `Villager` do mundo libera o documento civil associado.
+### Windows (PowerShell)
+
+```powershell
+$tests = Get-ChildItem -Path "test" -Recurse -Filter "*.java" | ForEach-Object { $_.FullName }
+javac -encoding UTF-8 -cp "bin;lib\junit-platform-console-standalone-1.10.2.jar" -d bin-test $tests
+java "-Dfile.encoding=UTF-8" -jar "lib\junit-platform-console-standalone-1.10.2.jar" execute --class-path "bin;bin-test" --scan-class-path
+```
+
+### Linux / macOS (Bash)
+
+```bash
+mkdir -p bin-test
+javac -encoding UTF-8 -cp "bin:lib/junit-platform-console-standalone-1.10.2.jar" -d bin-test $(find test -name "*.java")
+java -Dfile.encoding=UTF-8 -jar lib/junit-platform-console-standalone-1.10.2.jar execute --class-path "bin:bin-test" --scan-class-path
+```
