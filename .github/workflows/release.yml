@@ -2,8 +2,11 @@ name: Build and Release Fabric Mod
 
 on:
   push:
+    branches:
+      - fabric-mod
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -22,8 +25,10 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
+      - name: Normalize gradlew line endings and permissions
+        run: |
+          sed -i 's/\r$//' gradlew
+          chmod +x gradlew
 
       - name: Build and test Fabric mod
         run: ./gradlew build --no-daemon
@@ -32,11 +37,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" build/libs/villager-rg-*.jar \
-            --title "Villager-RG ${GITHUB_REF_NAME} (Minecraft 1.20.1 Fabric)" \
-            --notes "## Villager-RG para Minecraft 1.20.1 (Fabric)
+          TAG="v1.0.0-fabric-1.20.1"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          fi
 
-          Sistema de Registro Civil para Villagers com CPF válido (Módulo 11), RG, nome por bioma, histórico de profissões, persistência NBT nativa e padrões GoF (Builder, Strategy e Observer).
+          cat << 'EOF' > release_notes.md
+          ## Villager-RG para Minecraft 1.20.1 (Fabric)
+
+          Sistema de Registro Civil para Villagers com CPF válido (Módulo 11), RG, nome por bioma, histórico de profissões, persistência NBT nativa e padrões GoF (**Builder**, **Strategy** e **Observer**).
 
           ### Requisitos
           - Minecraft Java Edition **1.20.1**
@@ -44,4 +53,23 @@ jobs:
           - **Fabric API** (1.20.1)
 
           ### Instalação
-          Baixe o arquivo \`villager-rg-1.0.0.jar\` abaixo (não o \`-sources.jar\`) e coloque na pasta \`.minecraft/mods/\` junto com a Fabric API."
+          1. Baixe o arquivo **`villager-rg-1.0.0.jar`** abaixo (não o `-sources.jar`).
+          2. Coloque o `.jar` junto com a **Fabric API 1.20.1** na pasta `.minecraft/mods/`.
+          3. Inicie o Minecraft 1.20.1 com o perfil **Fabric**.
+
+          ### Controles no Jogo
+          - **Prancheta de Recenseamento** (aba Ferramentas ou receita: Pepita de Ferro + Papel + Laje de Madeira):
+            - **Clique direito em um Villager:** exibe o documento civil no chat.
+            - **Shift + Clique direito no ar:** alterna o formato (**Ficha Completa → Compacto → JSON**).
+          - **Comandos:** `/villagerrg censo`, `/villagerrg auditoria`, `/villagerrg formato <ficha|compacto|json>`.
+          EOF
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" build/libs/villager-rg-*.jar --clobber
+            gh release edit "${TAG}" --notes-file release_notes.md
+          else
+            gh release create "${TAG}" build/libs/villager-rg-*.jar \
+              --target fabric-mod \
+              --title "Villager-RG ${TAG} (Minecraft 1.20.1 Fabric)" \
+              --notes-file release_notes.md
+          fi
