@@ -3,12 +3,12 @@ package br.unicap.modvillagers.modelo;
 import br.unicap.modvillagers.excecoes.DocumentoInvalidoException;
 import br.unicap.modvillagers.excecoes.PersistenciaNBTException;
 import br.unicap.modvillagers.excecoes.RegistroCivilException;
+import br.unicap.modvillagers.padroes.builder.VillagerDocumentBuilder;
 import br.unicap.modvillagers.persistencia.NBTTagCompound;
 import br.unicap.modvillagers.servico.DocumentGenerator;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
-import java.util.List;
 
 /**
  * Componente anexado a cada entidade {@code Villager} responsável por manter
@@ -21,30 +21,58 @@ import java.util.List;
  *   <li><b>Dependência de {@link DocumentGenerator}:</b> utiliza temporariamente os
  *       serviços do gerador na emissão do documento sem manter referência de instância.</li>
  * </ul>
+ *
+ * <p>Na Etapa 5, foi refatorado para utilizar o padrão <b>Builder</b>
+ * ({@link VillagerDocumentBuilder}) na emissão e na reconstrução a partir de NBT.</p>
  */
 public class DocumentAttachment {
 
+    /** Chave NBT para o nome completo do Villager. */
     public static final String TAG_NOME = "villager_nome";
+    /** Chave NBT para o CPF do Villager. */
     public static final String TAG_CPF = "villager_cpf";
+    /** Chave NBT para o RG do Villager. */
     public static final String TAG_RG = "villager_rg";
+    /** Chave NBT para o bioma de origem do Villager. */
     public static final String TAG_BIOMA = "villager_bioma";
+    /** Chave NBT para a data de geração do documento em formato ISO-8601. */
     public static final String TAG_DATA_GERACAO = "villager_data_geracao";
+    /** Chave NBT para a lista cronológica de profissões do Villager. */
     public static final String TAG_HISTORICO_PROFISSOES = "villager_historico_profissoes";
 
     private VillagerDocument documento;
 
+    /**
+     * Cria o componente emitindo automaticamente um documento civil para o bioma padrão ({@code "Planície"}).
+     */
     public DocumentAttachment() {
         this("Planície");
     }
 
+    /**
+     * Cria o componente emitindo automaticamente um documento civil com nome
+     * contextualizado ao bioma de origem informado, utilizando {@link DocumentGenerator}
+     * e {@link VillagerDocumentBuilder}.
+     *
+     * @param biomaOrigem bioma de origem do Villager
+     */
     public DocumentAttachment(String biomaOrigem) {
         DocumentGenerator gerador = new DocumentGenerator();
-        String nome = gerador.gerarNome(biomaOrigem);
-        String cpf = gerador.gerarCpfValido();
-        String rg = gerador.gerarRg();
-        this.documento = new VillagerDocument(nome, cpf, rg, biomaOrigem, LocalDate.now());
+        this.documento = new VillagerDocumentBuilder()
+                .comNome(gerador.gerarNome(biomaOrigem))
+                .comCpf(gerador.gerarCpfValido())
+                .comRg(gerador.gerarRg())
+                .comBiomaOrigem(biomaOrigem)
+                .comDataGeracao(LocalDate.now())
+                .build();
     }
 
+    /**
+     * Cria o componente encapsulando um {@link VillagerDocument} já construído.
+     *
+     * @param documento documento civil a ser anexado
+     * @throws DocumentoInvalidoException se o documento informado for nulo
+     */
     public DocumentAttachment(VillagerDocument documento) {
         if (documento == null) {
             throw new DocumentoInvalidoException("O documento anexado ao DocumentAttachment não pode ser nulo.");
@@ -52,10 +80,20 @@ public class DocumentAttachment {
         this.documento = documento;
     }
 
+    /**
+     * Retorna o documento civil associado a este componente.
+     *
+     * @return documento civil ativo ou {@code null} caso o componente tenha sido destruído
+     */
     public VillagerDocument getDocumento() {
         return documento;
     }
 
+    /**
+     * Indica se existe um documento civil ativo anexado a este componente.
+     *
+     * @return {@code true} se houver documento ativo; {@code false} caso contrário
+     */
     public boolean hasDocumento() {
         return documento != null;
     }
@@ -64,6 +102,7 @@ public class DocumentAttachment {
      * Registra uma nova profissão no histórico do documento civil anexado.
      *
      * @param profissao profissão adquirida pelo Villager
+     * @throws DocumentoInvalidoException se não houver documento ativo
      */
     public void registrarProfissao(String profissao) {
         if (documento == null) {
@@ -95,7 +134,8 @@ public class DocumentAttachment {
     }
 
     /**
-     * Reconstrói o {@link VillagerDocument} a partir dos dados armazenados em um {@link NBTTagCompound}.
+     * Reconstrói o {@link VillagerDocument} a partir dos dados armazenados em um {@link NBTTagCompound},
+     * delegando a montagem fluente ao {@link VillagerDocumentBuilder}.
      *
      * @param nbt composto NBT de origem
      * @throws PersistenciaNBTException se o composto NBT estiver incompleto, corrompido ou contiver dados inválidos
@@ -111,11 +151,6 @@ public class DocumentAttachment {
             );
         }
 
-        String nome = nbt.getString(TAG_NOME);
-        String cpf = nbt.getString(TAG_CPF);
-        String rg = nbt.getString(TAG_RG);
-        String bioma = nbt.hasKey(TAG_BIOMA) ? nbt.getString(TAG_BIOMA) : "Planície";
-
         LocalDate dataGeracao = LocalDate.now();
         if (nbt.hasKey(TAG_DATA_GERACAO)) {
             try {
@@ -128,12 +163,14 @@ public class DocumentAttachment {
         }
 
         try {
-            VillagerDocument restaurado = new VillagerDocument(nome, cpf, rg, bioma, dataGeracao);
-            List<String> profissoes = nbt.getStringList(TAG_HISTORICO_PROFISSOES);
-            for (String profissao : profissoes) {
-                restaurado.adicionarProfissao(profissao);
-            }
-            this.documento = restaurado;
+            this.documento = new VillagerDocumentBuilder()
+                    .comNome(nbt.getString(TAG_NOME))
+                    .comCpf(nbt.getString(TAG_CPF))
+                    .comRg(nbt.getString(TAG_RG))
+                    .comBiomaOrigem(nbt.hasKey(TAG_BIOMA) ? nbt.getString(TAG_BIOMA) : "Planície")
+                    .comDataGeracao(dataGeracao)
+                    .comHistoricoProfissoes(nbt.getStringList(TAG_HISTORICO_PROFISSOES))
+                    .build();
         } catch (RegistroCivilException e) {
             throw new PersistenciaNBTException("Falha ao reconstruir VillagerDocument a partir do NBT: " + e.getMessage(), e);
         }
@@ -147,6 +184,11 @@ public class DocumentAttachment {
         this.documento = null;
     }
 
+    /**
+     * Retorna uma representação textual resumida deste componente e de seu documento.
+     *
+     * @return representação textual do {@code DocumentAttachment}
+     */
     @Override
     public String toString() {
         return "DocumentAttachment{documento=" + documento + '}';

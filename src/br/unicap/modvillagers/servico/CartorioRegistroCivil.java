@@ -7,6 +7,7 @@ import br.unicap.modvillagers.excecoes.VillagerDuplicadoException;
 import br.unicap.modvillagers.excecoes.VillagerNaoEncontradoException;
 import br.unicap.modvillagers.modelo.DocumentAttachment;
 import br.unicap.modvillagers.modelo.VillagerDocument;
+import br.unicap.modvillagers.padroes.builder.VillagerDocumentBuilder;
 import br.unicap.modvillagers.util.ValidacaoUtil;
 
 import java.time.LocalDate;
@@ -23,14 +24,8 @@ import java.util.UUID;
 /**
  * Serviço central de gerenciamento do Registro Civil dos Villagers (Cartório).
  *
- * <p>Demonstra o uso idiomático das coleções do Java:</p>
- * <ul>
- *   <li>{@link Map}: indexação rápida de Villagers por CPF ({@code villagersPorCpf}),
- *       agrupamento por bioma e contagem censitária por profissão.</li>
- *   <li>{@link Set}: garantia de unicidade histórica de CPFs emitidos ({@code cpfsEmitidos})
- *       e listagem de biomas distintos cadastrados.</li>
- *   <li>{@link List}: listagem ordenada de cidadãos e agrupamentos por bioma.</li>
- * </ul>
+ * <p>Demonstra o uso idiomático das coleções do Java ({@link Map}, {@link Set} e {@link List})
+ * e utiliza o padrão <b>Builder</b> ({@link VillagerDocumentBuilder}) na emissão de novos documentos.</p>
  */
 public class CartorioRegistroCivil {
 
@@ -38,10 +33,18 @@ public class CartorioRegistroCivil {
     private final Set<String> cpfsEmitidos;
     private final DocumentGenerator gerador;
 
+    /**
+     * Cria um novo cartório utilizando uma instância padrão de {@link DocumentGenerator}.
+     */
     public CartorioRegistroCivil() {
         this(new DocumentGenerator());
     }
 
+    /**
+     * Cria um novo cartório utilizando um gerador de documentos customizado.
+     *
+     * @param gerador instância de {@link DocumentGenerator} responsável por gerar dados civis
+     */
     public CartorioRegistroCivil(DocumentGenerator gerador) {
         this.villagersPorCpf = new LinkedHashMap<>();
         this.cpfsEmitidos = new HashSet<>();
@@ -49,22 +52,26 @@ public class CartorioRegistroCivil {
     }
 
     /**
-     * Emite um novo documento civil garantindo CPF único (verificado no {@link Set}),
-     * instancia o {@link Villager} e o cadastra no cartório.
+     * Emite um novo documento civil via {@link VillagerDocumentBuilder} garantindo CPF único
+     * no {@link Set} histórico, instancia o {@link Villager} e o cadastra no cartório.
      *
      * @param bioma            bioma de origem do Villager
      * @param profissaoInicial profissão inicial exercida
-     * @return instância de {@link Villager} registrada
+     * @return instância de {@link Villager} registrada no cartório
      */
     public Villager emitirERegistrarVillager(String bioma, String profissaoInicial) {
         String biomaValido = ValidacaoUtil.exigirTextoValido(bioma, "Bioma");
         String profissaoValida = ValidacaoUtil.exigirTextoValido(profissaoInicial, "Profissão inicial");
 
-        String nome = gerador.gerarNome(biomaValido);
-        String cpf = gerador.gerarCpfUnico(cpfsEmitidos);
-        String rg = gerador.gerarRg();
+        VillagerDocument documento = new VillagerDocumentBuilder()
+                .comNome(gerador.gerarNome(biomaValido))
+                .comCpf(gerador.gerarCpfUnico(cpfsEmitidos))
+                .comRg(gerador.gerarRg())
+                .comBiomaOrigem(biomaValido)
+                .comDataGeracao(LocalDate.now())
+                .comProfissao(profissaoValida)
+                .build();
 
-        VillagerDocument documento = new VillagerDocument(nome, cpf, rg, biomaValido, LocalDate.now());
         DocumentAttachment attachment = new DocumentAttachment(documento);
         String entityId = UUID.randomUUID().toString().substring(0, 8);
         Villager villager = new Villager(entityId, biomaValido, profissaoValida, attachment);
@@ -117,10 +124,11 @@ public class CartorioRegistroCivil {
 
     /**
      * Remove um {@link Villager} do cadastro ativo pelo CPF, mantendo o CPF no
-     * conjunto histórico {@code cpfsEmitidos} para impedir reutilização.
+     * conjunto histórico {@code cpfsEmitidos} para impedir reutilização futura.
      *
      * @param cpf CPF do Villager a ser removido
-     * @return o {@link Villager} removido
+     * @return o {@link Villager} removido do cadastro ativo
+     * @throws CpfInvalidoException          se o CPF informado for inválido
      * @throws VillagerNaoEncontradoException se não existir cadastro ativo para o CPF
      */
     public Villager removerPorCpf(String cpf) {
@@ -131,6 +139,8 @@ public class CartorioRegistroCivil {
 
     /**
      * Retorna uma lista imutável ({@link List}) com todos os Villagers ativos no cartório.
+     *
+     * @return lista não modificável de Villagers registrados
      */
     public List<Villager> listarTodos() {
         return Collections.unmodifiableList(new ArrayList<>(villagersPorCpf.values()));
@@ -138,6 +148,8 @@ public class CartorioRegistroCivil {
 
     /**
      * Retorna o conjunto imutável ({@link Set}) de todos os CPFs já emitidos pelo cartório.
+     *
+     * @return conjunto não modificável de CPFs históricos
      */
     public Set<String> getCpfsEmitidos() {
         return Collections.unmodifiableSet(cpfsEmitidos);
@@ -145,6 +157,8 @@ public class CartorioRegistroCivil {
 
     /**
      * Retorna o conjunto imutável ({@link Set}) de biomas distintos entre os Villagers cadastrados.
+     *
+     * @return conjunto não modificável de nomes de biomas
      */
     public Set<String> listarBiomasRegistrados() {
         Set<String> biomas = new LinkedHashSet<>();
@@ -155,7 +169,9 @@ public class CartorioRegistroCivil {
     }
 
     /**
-     * Agrupa os Villagers cadastrados por bioma em um {@link Map} de listas.
+     * Agrupa os Villagers cadastrados por bioma em um {@link Map} de listas imutáveis.
+     *
+     * @return mapa associando cada bioma à lista de Villagers residentes nele
      */
     public Map<String, List<Villager>> agruparPorBioma() {
         Map<String, List<Villager>> porBioma = new LinkedHashMap<>();
@@ -172,6 +188,8 @@ public class CartorioRegistroCivil {
 
     /**
      * Contabiliza a quantidade de Villagers por profissão atual em um {@link Map}.
+     *
+     * @return mapa imutável associando cada profissão à quantidade de Villagers
      */
     public Map<String, Integer> contarPorProfissao() {
         Map<String, Integer> contagem = new LinkedHashMap<>();
@@ -181,6 +199,11 @@ public class CartorioRegistroCivil {
         return Collections.unmodifiableMap(contagem);
     }
 
+    /**
+     * Retorna a quantidade total de Villagers ativos atualmente no cartório.
+     *
+     * @return número de registros ativos
+     */
     public int getTotalRegistrados() {
         return villagersPorCpf.size();
     }
