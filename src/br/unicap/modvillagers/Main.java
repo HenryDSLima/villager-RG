@@ -12,141 +12,173 @@ import br.unicap.modvillagers.itens.InspectorItem;
 import br.unicap.modvillagers.itens.Item;
 import br.unicap.modvillagers.itens.ItemRegistrable;
 import br.unicap.modvillagers.modelo.VillagerDocument;
+import br.unicap.modvillagers.padroes.builder.VillagerDocumentBuilder;
+import br.unicap.modvillagers.padroes.observer.AuditoriaHistoricoObserver;
+import br.unicap.modvillagers.padroes.observer.EventoRegistroCivil.TipoEvento;
+import br.unicap.modvillagers.padroes.observer.NotificacaoJogadorObserver;
+import br.unicap.modvillagers.padroes.strategy.FormatoCompactoStrategy;
+import br.unicap.modvillagers.padroes.strategy.FormatoFichaCompletaStrategy;
+import br.unicap.modvillagers.padroes.strategy.FormatoJsonStrategy;
 import br.unicap.modvillagers.persistencia.ArquivoNBTPersistencia;
 import br.unicap.modvillagers.servico.CartorioRegistroCivil;
 import br.unicap.modvillagers.servico.DocumentGenerator;
 
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Classe principal de demonstração da integração completa do Sistema de Registro Civil
- * para Villagers (Etapas 3 e 4 - POO / UNICAP):
- * encapsulamento, herança, polimorfismo, interfaces, composição, exceções específicas,
- * coleções (List, Map, Set) e persistência em arquivos com Java I/O.
+ * Classe principal de demonstração da arquitetura completa do Sistema de Registro Civil
+ * para Villagers (Etapas 3, 4 e 5 — POO / UNICAP), integrando fundamentos de POO,
+ * exceções específicas, coleções, Java I/O e os padrões de projeto GoF
+ * <b>Builder</b>, <b>Strategy</b> e <b>Observer</b>.
  */
 public class Main {
 
+    /**
+     * Construtor padrão da classe de entrada da aplicação.
+     */
+    public Main() {
+    }
+
+    /**
+     * Ponto de entrada da aplicação de demonstração do sistema Villager-RG.
+     *
+     * @param args argumentos de linha de comando (não utilizados)
+     */
     public static void main(String[] args) {
         System.out.println("============================================================");
-        System.out.println("  SISTEMA DE REGISTRO CIVIL PARA VILLAGERS - ETAPA 4");
+        System.out.println("  SISTEMA DE REGISTRO CIVIL PARA VILLAGERS - ETAPA 5 (GoF)");
         System.out.println("============================================================\n");
 
         CartorioRegistroCivil cartorio = new CartorioRegistroCivil();
         RegistroCivilEventBus eventBus = new RegistroCivilEventBus(cartorio);
+        Player jogador = new Player("Henry", "Planície");
 
-        // 1. Interface ItemRegistrable e Registro Polimórfico em Map
-        System.out.println("--- 1. REGISTRO DE ITENS (INTERFACE ItemRegistrable + Map) ---");
+        // 1. Padrão Observer (GoF): inscrevendo observadores no EventBus
+        System.out.println("--- 1. PADRÃO OBSERVER (AUDITORIA E NOTIFICAÇÃO NO EVENT BUS) ---");
+        AuditoriaHistoricoObserver auditoria = new AuditoriaHistoricoObserver();
+        NotificacaoJogadorObserver notificacaoJogador = new NotificacaoJogadorObserver(jogador, true);
+        eventBus.adicionarObservador(auditoria);
+        eventBus.adicionarObservador(notificacaoJogador);
+
         InspectorItem prancheta = new InspectorItem();
         ItemRegistrable itemRegistravel = prancheta;
         eventBus.registrarItem(itemRegistravel);
-        System.out.println("Item recuperado por registryId: "
-                + eventBus.buscarItemRegistrado(prancheta.getRegistryId()));
         System.out.println();
 
-        // 2. Emissão de documentos no spawn, Cartório e Coleções (List, Map, Set)
-        System.out.println("--- 2. EMISSÃO DE DOCUMENTOS E COLEÇÕES (List, Map, Set) ---");
+        // 2. Padrão Builder (GoF) + Cartório (List, Map, Set)
+        System.out.println("--- 2. PADRÃO BUILDER + COLEÇÕES DO CARTÓRIO (List, Map, Set) ---");
+        DocumentGenerator gerador = new DocumentGenerator();
+        VillagerDocument docConstruido = new VillagerDocumentBuilder()
+                .comNome("Elena Campos")
+                .comCpf(gerador.gerarCpfValido())
+                .comRg(gerador.gerarRg())
+                .comBiomaOrigem("Planície")
+                .comDataGeracao(LocalDate.of(2026, 10, 1))
+                .comProfissao("Desempregado")
+                .comProfissao("Bibliotecário")
+                .build();
+        System.out.println("Documento montado via Builder: " + docConstruido);
+
         Villager villagerPlanicie = eventBus.emitirDocumentoNoSpawn("Planície", "Desempregado");
         Villager villagerDeserto = eventBus.emitirDocumentoNoSpawn("Deserto", "Ferreiro de Armas");
         Villager villagerTaiga = eventBus.emitirDocumentoNoSpawn("Taiga", "Cartógrafo");
-        Villager villagerPlanicie2 = eventBus.emitirDocumentoNoSpawn("Planície", "Fazendeiro");
 
         eventBus.atualizarHistoricoEmprego(villagerPlanicie, "Fazendeiro");
         eventBus.atualizarHistoricoEmprego(villagerPlanicie, "Bibliotecário");
-        eventBus.atualizarHistoricoEmprego(villagerPlanicie, "Fazendeiro");
 
-        VillagerDocument docPlanicie = villagerPlanicie.getDocumentAttachment().getDocumento();
-        System.out.println("Histórico cronológico (List): " + docPlanicie.getHistoricoProfissoes());
-        System.out.println("Profissões únicas exercidas (Set): " + docPlanicie.getProfissoesUnicas());
-        System.out.println("Biomas distintos registrados no cartório (Set): " + cartorio.listarBiomasRegistrados());
-        System.out.println("Contagem por profissão atual (Map): " + cartorio.contarPorProfissao());
-        System.out.println("Agrupamento por bioma (Map<String, List<Villager>>):");
+        System.out.println("Biomas distintos no cartório (Set): " + cartorio.listarBiomasRegistrados());
+        System.out.println("Contagem por profissão (Map): " + cartorio.contarPorProfissao());
         for (Map.Entry<String, List<Villager>> entrada : cartorio.agruparPorBioma().entrySet()) {
-            System.out.println(" - " + entrada.getKey() + ": " + entrada.getValue().size() + " cidadão(s)");
+            System.out.println(" - Bioma " + entrada.getKey() + ": " + entrada.getValue().size() + " cidadão(s)");
         }
         System.out.println();
 
-        // 3. Herança e Polimorfismo na Interação com Entidades
-        System.out.println("--- 3. HERANÇA E POLIMORFISMO NA INTERAÇÃO ---");
-        Player jogador = new Player("Henry", "Planície");
-        LivingEntity ovelha = new LivingEntity("Ovelha", 8.0, "Planície");
-        Item itemComum = new Item("Graveto", "Um graveto comum de madeira.", 64);
+        // 3. Padrão Strategy (GoF) + Herança/Polimorfismo
+        System.out.println("--- 3. PADRÃO STRATEGY NA INSPEÇÃO (FICHA COMPLETA, COMPACTO E JSON) ---");
         Item itemPolimorfico = prancheta;
 
-        System.out.println("Item comum em Villager -> retornou: "
-                + eventBus.dispararInteracaoEntidade(jogador, itemComum, villagerPlanicie));
-        System.out.println("InspectorItem em Ovelha -> retornou: "
-                + eventBus.dispararInteracaoEntidade(jogador, itemPolimorfico, ovelha));
-        System.out.println("\nInspectorItem (via referência Item) em Villager da Planície:");
+        System.out.println(">> Estratégia 1: " + prancheta.getFormatoExibicao().getNomeFormato());
         eventBus.dispararInteracaoEntidade(jogador, itemPolimorfico, villagerPlanicie);
+
+        prancheta.setFormatoExibicao(new FormatoCompactoStrategy());
+        System.out.println("\n>> Estratégia 2: " + prancheta.getFormatoExibicao().getNomeFormato());
+        eventBus.dispararInteracaoEntidade(jogador, itemPolimorfico, villagerDeserto);
+
+        prancheta.setFormatoExibicao(new FormatoJsonStrategy());
+        System.out.println("\n>> Estratégia 3: " + prancheta.getFormatoExibicao().getNomeFormato());
+        eventBus.dispararInteracaoEntidade(jogador, itemPolimorfico, villagerPlanicie);
+
+        LivingEntity ovelha = new LivingEntity("Ovelha", 8.0, "Planície");
+        System.out.println("\nInteração em entidade não-Villager (Ovelha): "
+                + eventBus.dispararInteracaoEntidade(jogador, itemPolimorfico, ovelha));
         System.out.println();
 
         // 4. Tratamento de Exceções Específicas
         System.out.println("--- 4. TRATAMENTO DE EXCEÇÕES ESPECÍFICAS ---");
         try {
-            new VillagerDocument("Villager Inválido", "111.111.111-11", "12.345.678-9");
+            new VillagerDocumentBuilder()
+                    .comNome("Inválido")
+                    .comCpf("111.111.111-11")
+                    .comRg("12.345.678-9")
+                    .build();
         } catch (CpfInvalidoException e) {
-            System.out.println("[Exceção capturada - CpfInvalidoException] " + e.getMessage());
+            System.out.println("[CpfInvalidoException] " + e.getMessage());
         }
 
         try {
             cartorio.registrarVillager(villagerDeserto);
         } catch (VillagerDuplicadoException e) {
-            System.out.println("[Exceção capturada - VillagerDuplicadoException] " + e.getMessage());
+            System.out.println("[VillagerDuplicadoException] " + e.getMessage());
         }
 
         try {
-            String cpfInexistente = new DocumentGenerator().gerarCpfUnico(cartorio.getCpfsEmitidos());
-            cartorio.buscarPorCpf(cpfInexistente);
+            cartorio.buscarPorCpf(gerador.gerarCpfUnico(cartorio.getCpfsEmitidos()));
         } catch (VillagerNaoEncontradoException e) {
-            System.out.println("[Exceção capturada - VillagerNaoEncontradoException] " + e.getMessage());
+            System.out.println("[VillagerNaoEncontradoException] " + e.getMessage());
         }
         System.out.println();
 
-        // 5. Persistência em Arquivos com Java I/O (NBT + Relatório de Censo)
-        System.out.println("--- 5. PERSISTÊNCIA EM ARQUIVOS (JAVA I/O) ---");
+        // 5. Persistência em Arquivos (Java I/O) integrada à Strategy
+        System.out.println("--- 5. PERSISTÊNCIA EM ARQUIVOS (JAVA I/O + STRATEGY) ---");
         ArquivoNBTPersistencia persistencia = new ArquivoNBTPersistencia();
         Path arquivoNbt = Path.of("dados", "registro_civil_villagers.nbt");
-        Path arquivoRelatorio = Path.of("dados", "relatorio_censo.txt");
+        Path relatorioCompacto = Path.of("dados", "relatorio_censo_compacto.txt");
 
         try {
             persistencia.salvarVillagers(cartorio.listarTodos(), arquivoNbt);
-            System.out.println("Registros NBT salvos com sucesso em: " + arquivoNbt.toAbsolutePath());
+            List<Villager> restaurados = persistencia.carregarVillagers(arquivoNbt);
+            System.out.println("Villagers restaurados do arquivo NBT: " + restaurados.size());
+            System.out.println("Integridade do 1º documento restaurado: "
+                    + villagerPlanicie.getDocumentAttachment().getDocumento()
+                            .equals(restaurados.get(0).getDocumentAttachment().getDocumento()));
 
-            List<Villager> carregados = persistencia.carregarVillagers(arquivoNbt);
-            System.out.println("Total de Villagers restaurados do arquivo NBT: " + carregados.size());
-
-            Villager restauradoPlanicie = carregados.get(0);
-            System.out.println("Integridade do 1º documento restaurado (equals): "
-                    + docPlanicie.equals(restauradoPlanicie.getDocumentAttachment().getDocumento()));
-
-            persistencia.exportarRelatorioCenso(cartorio, arquivoRelatorio);
-            System.out.println("Relatório de censo exportado com sucesso em: " + arquivoRelatorio.toAbsolutePath());
+            persistencia.exportarRelatorioCenso(cartorio, relatorioCompacto, new FormatoCompactoStrategy());
+            System.out.println("Relatório compacto exportado em: " + relatorioCompacto.toAbsolutePath());
         } catch (PersistenciaNBTException e) {
-            System.err.println("[Erro de Persistência NBT] " + e.getMessage());
-        }
-
-        try {
-            persistencia.carregarVillagers(Path.of("dados", "arquivo_inexistente.nbt"));
-        } catch (PersistenciaNBTException e) {
-            System.out.println("[Exceção capturada - PersistenciaNBTException] " + e.getMessage());
+            System.err.println("[Erro NBT] " + e.getMessage());
         }
         System.out.println();
 
-        // 6. Ciclo de Vida da Composição 1:1
-        System.out.println("--- 6. CICLO DE VIDA DA COMPOSIÇÃO (REMOÇÃO DO VILLAGER) ---");
-        String cpfTaiga = villagerTaiga.getDocumentAttachment().getDocumento().getCpf();
-        cartorio.removerPorCpf(cpfTaiga);
-        villagerTaiga.removerDoMundo();
-        System.out.println("Villager Taiga removido do cartório e do mundo. Documento ativo? "
-                + villagerTaiga.getDocumentAttachment().hasDocumento());
-        System.out.println("Total de Villagers ativos restantes no cartório: " + cartorio.getTotalRegistrados()
-                + " | Total histórico de CPFs emitidos (Set): " + cartorio.getCpfsEmitidos().size());
-        System.out.println("Villager Planície 2 permanece ativo: " + villagerPlanicie2.getDescricaoEntidade());
+        // 6. Resumo da Auditoria (Observer) e Remoção de Entidade
+        System.out.println("--- 6. AUDITORIA DE EVENTOS (OBSERVER) E REMOÇÃO ---");
+        eventBus.removerVillager(villagerTaiga.getDocumentAttachment().getDocumento().getCpf());
+        prancheta.setFormatoExibicao(new FormatoFichaCompletaStrategy());
+
+        System.out.println("Total de eventos auditados pelo AuditoriaHistoricoObserver: " + auditoria.getTotalEventos());
+        System.out.println(" - Nascimentos registrados: "
+                + auditoria.filtrarPorTipo(TipoEvento.VILLAGER_NASCIDO).size());
+        System.out.println(" - Atualizações de profissão: "
+                + auditoria.filtrarPorTipo(TipoEvento.PROFISSAO_ATUALIZADA).size());
+        System.out.println(" - Inspeções concluídas: "
+                + auditoria.filtrarPorTipo(TipoEvento.CIDADAO_INSPECIONADO).size());
+        System.out.println(" - Remoções registradas: "
+                + auditoria.filtrarPorTipo(TipoEvento.VILLAGER_REMOVIDO).size());
 
         System.out.println("\n============================================================");
-        System.out.println("  DEMONSTRAÇÃO DA ETAPA 4 CONCLUÍDA COM SUCESSO!");
+        System.out.println("  DEMONSTRAÇÃO DA ETAPA 5 CONCLUÍDA COM SUCESSO!");
         System.out.println("============================================================");
     }
 }
