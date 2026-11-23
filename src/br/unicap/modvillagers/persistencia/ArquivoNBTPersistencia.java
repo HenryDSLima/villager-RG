@@ -4,6 +4,8 @@ import br.unicap.modvillagers.entidades.Villager;
 import br.unicap.modvillagers.excecoes.PersistenciaNBTException;
 import br.unicap.modvillagers.modelo.DocumentAttachment;
 import br.unicap.modvillagers.modelo.VillagerDocument;
+import br.unicap.modvillagers.padroes.strategy.DocumentoFormatStrategy;
+import br.unicap.modvillagers.padroes.strategy.FormatoFichaCompletaStrategy;
 import br.unicap.modvillagers.servico.CartorioRegistroCivil;
 
 import java.io.BufferedReader;
@@ -21,6 +23,9 @@ import java.util.UUID;
  * Responsável pela persistência em disco dos dados NBT dos Villagers e pela
  * exportação de relatórios de censo civil utilizando recursos de Java I/O
  * ({@link BufferedReader}, {@link BufferedWriter}, {@link Files} e {@code try-with-resources}).
+ *
+ * <p>Integra-se ao padrão <b>Strategy</b> ({@link DocumentoFormatStrategy}) para permitir
+ * a exportação de relatórios de censo em diferentes formatos de apresentação.</p>
  */
 public class ArquivoNBTPersistencia {
 
@@ -29,6 +34,12 @@ public class ArquivoNBTPersistencia {
     private static final String PREFIXO_STRING = "S:";
     private static final String PREFIXO_LISTA = "L:";
     private static final String SEPARADOR_LISTA = "|";
+
+    /**
+     * Cria uma nova instância do serviço de persistência em arquivos NBT.
+     */
+    public ArquivoNBTPersistencia() {
+    }
 
     /**
      * Salva uma lista de {@link Villager}s em um arquivo de dados NBT em formato textual estruturado (UTF-8).
@@ -154,18 +165,37 @@ public class ArquivoNBTPersistencia {
     }
 
     /**
-     * Exporta um relatório textual legível do censo civil armazenado no {@link CartorioRegistroCivil}.
+     * Exporta um relatório textual do censo civil utilizando a estratégia padrão ({@link FormatoFichaCompletaStrategy}).
      *
      * @param cartorio         instância do cartório contendo os registros
      * @param caminhoRelatorio caminho do arquivo de relatório de saída
      * @throws PersistenciaNBTException se ocorrer erro de validação ou escrita em disco
      */
     public void exportarRelatorioCenso(CartorioRegistroCivil cartorio, Path caminhoRelatorio) throws PersistenciaNBTException {
+        exportarRelatorioCenso(cartorio, caminhoRelatorio, new FormatoFichaCompletaStrategy());
+    }
+
+    /**
+     * Exporta um relatório textual do censo civil formatando cada cidadão conforme
+     * a estratégia {@link DocumentoFormatStrategy} informada (padrão Strategy).
+     *
+     * @param cartorio         instância do cartório contendo os registros
+     * @param caminhoRelatorio caminho do arquivo de relatório de saída
+     * @param estrategia       estratégia de formatação para os documentos listados
+     * @throws PersistenciaNBTException se ocorrer erro de validação ou escrita em disco
+     */
+    public void exportarRelatorioCenso(
+            CartorioRegistroCivil cartorio,
+            Path caminhoRelatorio,
+            DocumentoFormatStrategy estrategia) throws PersistenciaNBTException {
         if (cartorio == null) {
             throw new PersistenciaNBTException("Cartório não pode ser nulo para exportação do relatório.");
         }
         if (caminhoRelatorio == null) {
             throw new PersistenciaNBTException("Caminho do relatório não pode ser nulo.");
+        }
+        if (estrategia == null) {
+            throw new PersistenciaNBTException("Estratégia de formatação não pode ser nula.");
         }
 
         criarDiretorioPaiSeNecessario(caminhoRelatorio);
@@ -174,6 +204,8 @@ public class ArquivoNBTPersistencia {
             writer.write("============================================================");
             writer.newLine();
             writer.write("         RELATÓRIO DE CENSO CIVIL - VILLAGER-RG");
+            writer.newLine();
+            writer.write("         Formato utilizado: " + estrategia.getNomeFormato());
             writer.newLine();
             writer.write("============================================================");
             writer.newLine();
@@ -197,7 +229,7 @@ public class ArquivoNBTPersistencia {
             writer.newLine();
             for (Villager villager : cartorio.listarTodos()) {
                 VillagerDocument doc = villager.getDocumentAttachment().getDocumento();
-                writer.write(doc.formatarParaChat(villager.getProfissaoAtual()));
+                writer.write(doc.formatar(estrategia, villager.getProfissaoAtual()));
                 writer.newLine();
                 writer.newLine();
             }

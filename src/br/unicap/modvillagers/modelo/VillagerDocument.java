@@ -2,10 +2,11 @@ package br.unicap.modvillagers.modelo;
 
 import br.unicap.modvillagers.excecoes.CpfInvalidoException;
 import br.unicap.modvillagers.excecoes.DocumentoInvalidoException;
+import br.unicap.modvillagers.padroes.strategy.DocumentoFormatStrategy;
+import br.unicap.modvillagers.padroes.strategy.FormatoFichaCompletaStrategy;
 import br.unicap.modvillagers.util.ValidacaoUtil;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -20,10 +21,14 @@ import java.util.Set;
  * dados de identidade (nome, CPF, RG, bioma de origem e data de geração) são
  * imutáveis após a criação. O CPF é validado matematicamente pelo Módulo 11 na
  * construção, lançando {@link CpfInvalidoException} caso seja inválido.</p>
+ *
+ * <p>Na Etapa 5, a responsabilidade de apresentação textual foi delegada ao padrão
+ * <b>Strategy</b> ({@link DocumentoFormatStrategy}), mantendo esta classe focada
+ * exclusivamente nos dados e regras do documento civil.</p>
  */
 public class VillagerDocument {
 
-    private static final DateTimeFormatter FORMATO_DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DocumentoFormatStrategy ESTRATEGIA_PADRAO = new FormatoFichaCompletaStrategy();
 
     private final String nome;
     private final String cpf;
@@ -38,6 +43,8 @@ public class VillagerDocument {
      * @param nome nome completo do Villager
      * @param cpf  CPF válido do Villager
      * @param rg   RG formatado do Villager
+     * @throws CpfInvalidoException       se o CPF informado for inválido
+     * @throws DocumentoInvalidoException se nome ou RG forem nulos ou vazios
      */
     public VillagerDocument(String nome, String cpf, String rg) {
         this(nome, cpf, rg, "Planície", LocalDate.now());
@@ -51,6 +58,8 @@ public class VillagerDocument {
      * @param rg          RG formatado do Villager
      * @param biomaOrigem bioma em que o Villager foi gerado
      * @param dataGeracao data de emissão do documento civil
+     * @throws CpfInvalidoException       se o CPF informado for inválido
+     * @throws DocumentoInvalidoException se algum campo obrigatório for nulo ou vazio
      */
     public VillagerDocument(String nome, String cpf, String rg, String biomaOrigem, LocalDate dataGeracao) {
         this.nome = exigirCampoDocumento(nome, "Nome do Villager");
@@ -74,22 +83,47 @@ public class VillagerDocument {
         return valor.trim();
     }
 
+    /**
+     * Retorna o nome completo registrado no documento civil.
+     *
+     * @return nome do Villager
+     */
     public String getNome() {
         return nome;
     }
 
+    /**
+     * Retorna o CPF válido e formatado do Villager.
+     *
+     * @return CPF do Villager
+     */
     public String getCpf() {
         return cpf;
     }
 
+    /**
+     * Retorna o RG formatado do Villager.
+     *
+     * @return RG do Villager
+     */
     public String getRg() {
         return rg;
     }
 
+    /**
+     * Retorna o bioma de origem em que o Villager foi gerado.
+     *
+     * @return bioma de origem
+     */
     public String getBiomaOrigem() {
         return biomaOrigem;
     }
 
+    /**
+     * Retorna a data de emissão do documento civil.
+     *
+     * @return data de geração do registro
+     */
     public LocalDate getDataGeracao() {
         return dataGeracao;
     }
@@ -131,7 +165,19 @@ public class VillagerDocument {
     }
 
     /**
-     * Formata os dados do documento civil para exibição amigável no chat do jogador.
+     * Formata os dados do documento civil utilizando uma estratégia {@link DocumentoFormatStrategy} específica.
+     *
+     * @param estrategia     estratégia de formatação desejada
+     * @param profissaoAtual profissão atual do Villager (opcional)
+     * @return representação textual produzida pela estratégia
+     */
+    public String formatar(DocumentoFormatStrategy estrategia, String profissaoAtual) {
+        DocumentoFormatStrategy strategy = ValidacaoUtil.exigirNaoNulo(estrategia, "DocumentoFormatStrategy");
+        return strategy.formatar(this, profissaoAtual);
+    }
+
+    /**
+     * Formata os dados do documento civil para exibição no chat usando a estratégia padrão (Ficha Completa).
      *
      * @return representação formatada do documento
      */
@@ -140,35 +186,21 @@ public class VillagerDocument {
     }
 
     /**
-     * Formata os dados do documento civil incluindo, opcionalmente, a profissão atual.
+     * Formata os dados do documento civil incluindo, opcionalmente, a profissão atual,
+     * utilizando a estratégia padrão (Ficha Completa).
      *
      * @param profissaoAtual profissão atual do Villager (opcional)
      * @return representação formatada do documento
      */
     public String formatarParaChat(String profissaoAtual) {
-        String historicoTexto = historicoProfissoes.isEmpty()
-                ? "Nenhum registro"
-                : String.join(" -> ", historicoProfissoes);
-
-        StringBuilder sb = new StringBuilder()
-                .append("===========================================\n")
-                .append("       REGISTRO CIVIL DE VILLAGER\n")
-                .append("===========================================\n")
-                .append(" Nome: ").append(nome).append("\n")
-                .append(" CPF: ").append(cpf).append("\n")
-                .append(" RG: ").append(rg).append("\n")
-                .append(" Bioma de Origem: ").append(biomaOrigem).append("\n")
-                .append(" Data de Emissão: ").append(dataGeracao.format(FORMATO_DATA)).append("\n");
-
-        if (profissaoAtual != null && !profissaoAtual.isBlank()) {
-            sb.append(" Profissão Atual: ").append(profissaoAtual.trim()).append("\n");
-        }
-
-        sb.append(" Histórico de Profissões: ").append(historicoTexto).append("\n")
-                .append("===========================================");
-        return sb.toString();
+        return ESTRATEGIA_PADRAO.formatar(this, profissaoAtual);
     }
 
+    /**
+     * Retorna a representação textual técnica deste documento civil.
+     *
+     * @return representação em string dos campos do documento
+     */
     @Override
     public String toString() {
         return "VillagerDocument{"
@@ -181,6 +213,12 @@ public class VillagerDocument {
                 + '}';
     }
 
+    /**
+     * Compara este documento civil com outro objeto com base em todos os seus campos.
+     *
+     * @param o objeto a ser comparado
+     * @return {@code true} se os documentos possuírem exatamente os mesmos dados
+     */
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -197,6 +235,11 @@ public class VillagerDocument {
                 && Objects.equals(historicoProfissoes, that.historicoProfissoes);
     }
 
+    /**
+     * Calcula o código hash consistente com {@link #equals(Object)}.
+     *
+     * @return código hash do documento
+     */
     @Override
     public int hashCode() {
         return Objects.hash(nome, cpf, rg, biomaOrigem, dataGeracao, historicoProfissoes);
