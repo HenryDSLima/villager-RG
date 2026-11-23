@@ -1,23 +1,11 @@
-# Compiled Java class files
-*.class
-bin/
-bin-test/
-out/
+.gradle/
 build/
-target/
-
-# Generated runtime data and Javadoc HTML output
-dados/
-javadoc/
-
-# IDE metadata
+run/
+out/
 .idea/
 *.iml
 .vscode/
 .classpath
 .project
 .settings/
-
-# OS files
-.DS_Store
-Thumbs.db
+*.log

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "villagerrg",
+  "version": "${version}",
+  "name": "Villager-RG",
+  "description": "Sistema de Registro Civil para Villagers com CPF válido (Módulo 11), RG, nome por bioma, histórico de profissões e persistência NBT.",
+  "authors": [
+    "Henry de Souza Lima"
+  ],
+  "contact": {
+    "sources": "https://github.com/HenryDSLima/villager-RG"
+  },
+  "license": "MIT",
+  "icon": "assets/villagerrg/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "br.unicap.modvillagers.VillagerRGMod"
+    ]
+  },
+  "mixins": [
+    "villagerrg.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.20.1",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}
