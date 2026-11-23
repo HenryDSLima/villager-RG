@@ -6,8 +6,9 @@ out/
 build/
 target/
 
-# Generated runtime data files
+# Generated runtime data and Javadoc HTML output
 dados/
+javadoc/
 
 # IDE metadata
 .idea/
