@@ -3,8 +3,8 @@ package br.unicap.modvillagers.util;
 import java.text.Normalizer;
 
 /**
- * Classe utilitária centralizada para validações comuns e normalização de textos,
- * eliminando duplicação de código entre as camadas do sistema.
+ * Classe utilitária centralizada para validações comuns, cálculo de dígitos verificadores
+ * de CPF e normalização de textos, eliminando duplicação de código entre as camadas do sistema.
  */
 public final class ValidacaoUtil {
 
@@ -19,6 +19,7 @@ public final class ValidacaoUtil {
      * @param valor     texto a ser validado
      * @param nomeCampo nome descritivo do campo para mensagens de erro úteis
      * @return texto validado e sem espaços nas extremidades
+     * @throws IllegalArgumentException se o texto for nulo ou em branco
      */
     public static String exigirTextoValido(String valor, String nomeCampo) {
         if (valor == null || valor.isBlank()) {
@@ -34,6 +35,7 @@ public final class ValidacaoUtil {
      * @param nomeCampo nome descritivo do campo
      * @param <T>       tipo do objeto
      * @return o próprio objeto validado
+     * @throws IllegalArgumentException se o objeto for nulo
      */
     public static <T> T exigirNaoNulo(T valor, String nomeCampo) {
         if (valor == null) {
@@ -44,6 +46,13 @@ public final class ValidacaoUtil {
 
     /**
      * Garante que um valor inteiro esteja dentro do intervalo inclusivo {@code [min, max]}.
+     *
+     * @param valor     valor inteiro a validar
+     * @param min       limite mínimo permitido (inclusivo)
+     * @param max       limite máximo permitido (inclusivo)
+     * @param nomeCampo nome descritivo do campo
+     * @return o valor validado
+     * @throws IllegalArgumentException se o valor estiver fora do intervalo
      */
     public static int exigirIntervalo(int valor, int min, int max, String nomeCampo) {
         if (valor < min || valor > max) {
@@ -56,6 +65,11 @@ public final class ValidacaoUtil {
 
     /**
      * Garante que um valor decimal não seja negativo.
+     *
+     * @param valor     valor numérico a validar
+     * @param nomeCampo nome descritivo do campo
+     * @return o valor validado
+     * @throws IllegalArgumentException se o valor for negativo
      */
     public static double exigirNaoNegativo(double valor, String nomeCampo) {
         if (valor < 0) {
@@ -98,6 +112,10 @@ public final class ValidacaoUtil {
 
     /**
      * Verifica se todos os primeiros {@code limite} dígitos de um array são iguais.
+     *
+     * @param digitos vetor de dígitos numéricos
+     * @param limite  quantidade de posições iniciais a verificar
+     * @return {@code true} se todos os dígitos no intervalo forem idênticos
      */
     public static boolean todosDigitosIguais(int[] digitos, int limite) {
         for (int i = 1; i < limite; i++) {

@@ -8,6 +8,11 @@ public class VillagerDuplicadoException extends RegistroCivilException {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Cria a exceção informando o CPF que já possui registro no cartório.
+     *
+     * @param cpf CPF duplicado
+     */
     public VillagerDuplicadoException(String cpf) {
         super("Já existe um Villager cadastrado no cartório com o CPF '" + cpf + "'.");
     }

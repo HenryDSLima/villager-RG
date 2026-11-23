@@ -14,16 +14,30 @@ import java.util.List;
  */
 public class Villager extends LivingEntity {
 
+    /** Chave NBT utilizada para persistir o identificador único da entidade Villager. */
     public static final String TAG_ENTITY_ID = "entity_id";
+    /** Chave NBT utilizada para persistir a profissão atual exercida pelo Villager. */
     public static final String TAG_PROFISSAO_ATUAL = "villager_profissao_atual";
 
     private String profissaoAtual;
     private final DocumentAttachment documentAttachment;
 
+    /**
+     * Cria um Villager desempregado no bioma informado, emitindo automaticamente seu documento civil.
+     *
+     * @param biomaAtual bioma onde o Villager surgiu
+     */
     public Villager(String biomaAtual) {
         this(biomaAtual, "Desempregado");
     }
 
+    /**
+     * Cria um Villager no bioma e profissão inicial informados, emitindo automaticamente
+     * seu documento civil e registrando a profissão inicial no histórico.
+     *
+     * @param biomaAtual       bioma onde o Villager surgiu
+     * @param profissaoInicial profissão inicial exercida pelo Villager
+     */
     public Villager(String biomaAtual, String profissaoInicial) {
         super("Villager", 20.0, biomaAtual);
         this.documentAttachment = new DocumentAttachment(biomaAtual);
@@ -49,6 +63,11 @@ public class Villager extends LivingEntity {
         }
     }
 
+    /**
+     * Retorna a profissão exercida atualmente pelo Villager.
+     *
+     * @return nome da profissão atual
+     */
     public String getProfissaoAtual() {
         return profissaoAtual;
     }
@@ -66,6 +85,11 @@ public class Villager extends LivingEntity {
         }
     }
 
+    /**
+     * Retorna o componente {@link DocumentAttachment} anexado a este Villager.
+     *
+     * @return componente de documento civil
+     */
     public DocumentAttachment getDocumentAttachment() {
         return documentAttachment;
     }
@@ -115,6 +139,11 @@ public class Villager extends LivingEntity {
         documentAttachment.destruir();
     }
 
+    /**
+     * Retorna uma descrição textual específica do Villager contendo seu nome civil, bioma e profissão.
+     *
+     * @return descrição resumida do Villager
+     */
     @Override
     public String getDescricaoEntidade() {
         String nomeCivil = documentAttachment.hasDocumento()

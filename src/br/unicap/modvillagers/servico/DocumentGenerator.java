@@ -78,10 +78,19 @@ public class DocumentGenerator {
 
     private final Random random;
 
+    /**
+     * Cria um gerador de documentos utilizando uma fonte pseudoaleatória padrão.
+     */
     public DocumentGenerator() {
         this(new Random());
     }
 
+    /**
+     * Cria um gerador de documentos utilizando uma instância customizada de {@link Random}
+     * (recomendado para testes unitários determinísticos).
+     *
+     * @param random gerador pseudoaleatório
+     */
     public DocumentGenerator(Random random) {
         this.random = ValidacaoUtil.exigirNaoNulo(random, "Gerador Random");
     }
@@ -178,6 +187,8 @@ public class DocumentGenerator {
 
     /**
      * Gera um nome completo padrão para um Villager (bioma Planície).
+     *
+     * @return nome e sobrenome sorteados
      */
     public String gerarNome() {
         return gerarNome("Planície");
@@ -202,7 +213,9 @@ public class DocumentGenerator {
     }
 
     /**
-     * Retorna o conjunto de biomas com listas de nomes dedicadas.
+     * Retorna o conjunto de chaves normalizadas dos biomas com listas de nomes dedicadas.
+     *
+     * @return conjunto de biomas suportados
      */
     public static Set<String> getBiomasSuportados() {
         return POOL_POR_BIOMA.keySet();

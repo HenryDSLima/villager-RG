@@ -8,6 +8,11 @@ public class DocumentoInvalidoException extends RegistroCivilException {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Cria a exceção com a mensagem explicando qual dado do documento é inválido.
+     *
+     * @param mensagem descrição do problema encontrado
+     */
     public DocumentoInvalidoException(String mensagem) {
         super(mensagem);
     }
