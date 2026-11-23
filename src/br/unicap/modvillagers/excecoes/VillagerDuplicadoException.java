@@ -6,6 +6,8 @@ package br.unicap.modvillagers.excecoes;
  */
 public class VillagerDuplicadoException extends RegistroCivilException {
 
+    private static final long serialVersionUID = 1L;
+
     public VillagerDuplicadoException(String cpf) {
         super("Já existe um Villager cadastrado no cartório com o CPF '" + cpf + "'.");
     }

@@ -6,6 +6,8 @@ package br.unicap.modvillagers.excecoes;
  */
 public class DocumentoInvalidoException extends RegistroCivilException {
 
+    private static final long serialVersionUID = 1L;
+
     public DocumentoInvalidoException(String mensagem) {
         super(mensagem);
     }

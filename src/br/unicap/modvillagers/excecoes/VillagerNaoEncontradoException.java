@@ -6,6 +6,8 @@ package br.unicap.modvillagers.excecoes;
  */
 public class VillagerNaoEncontradoException extends RegistroCivilException {
 
+    private static final long serialVersionUID = 1L;
+
     public VillagerNaoEncontradoException(String cpf) {
         super("Nenhum Villager encontrado no cartório para o CPF '" + cpf + "'.");
     }

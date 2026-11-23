@@ -6,6 +6,8 @@ package br.unicap.modvillagers.excecoes;
  */
 public class RegistroCivilException extends RuntimeException {
 
+    private static final long serialVersionUID = 1L;
+
     public RegistroCivilException(String mensagem) {
         super(mensagem);
     }

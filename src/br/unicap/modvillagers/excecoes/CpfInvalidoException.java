@@ -6,6 +6,8 @@ package br.unicap.modvillagers.excecoes;
  */
 public class CpfInvalidoException extends RegistroCivilException {
 
+    private static final long serialVersionUID = 1L;
+
     public CpfInvalidoException(String cpf) {
         super("CPF inválido: '" + cpf + "'. Informe um CPF com 11 dígitos e dígitos verificadores válidos.");
     }
